@@ -2990,6 +2990,25 @@ mod tests {
             return (oled_path, matrix_path, kbd_path);
         }
 
+        let candidate_mffs = [
+            repo_root.join("tests/fixtures/MicroFreak_Firmware_Update_5_0_0_2084.mff"),
+            repo_root.join("original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff"),
+            repo_root.join("dist/MicroFreak_OpenFirmware_5_0_0_2084.mff"),
+            repo_root.parent().unwrap_or(repo_root).join("open-microfreak/original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff"),
+            repo_root.parent().unwrap_or(repo_root).join("open-microfreak/dist/MicroFreak_OpenFirmware_5_0_0_2084.mff"),
+        ];
+
+        for mff_candidate in &candidate_mffs {
+            if mff_candidate.is_file() {
+                if let Ok(pkg) = crate::mff::MffFirmwarePackage::from_file(mff_candidate) {
+                    let _ = std::fs::write(&oled_path, &pkg.oled_coproc);
+                    let _ = std::fs::write(&matrix_path, &pkg.matrix_coproc);
+                    let _ = std::fs::write(&kbd_path, &pkg.kbd_coproc);
+                    return (oled_path, matrix_path, kbd_path);
+                }
+            }
+        }
+
         let mut dummy = vec![0u8; 1024];
         dummy[0..4].copy_from_slice(&0x2000_1000u32.to_le_bytes());
         dummy[4..8].copy_from_slice(&0x0800_0009u32.to_le_bytes());
