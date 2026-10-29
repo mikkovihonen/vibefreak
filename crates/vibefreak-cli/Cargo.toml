@@ -1,0 +1,21 @@
+[package]
+name = "vibefreak-cli"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+vibefreak-core = { path = "../vibefreak-core" }
+vibefreak-web = { path = "../vibefreak-web" }
+log.workspace = true
+env_logger.workspace = true
+tokio.workspace = true
+crossbeam-channel.workspace = true
+cpal.workspace = true
+ringbuf.workspace = true
+
+[[bin]]
+name = "vibefreak"
+path = "src/main.rs"
+
+

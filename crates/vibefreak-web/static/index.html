@@ -1,0 +1,3187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibeFreak - Arturia MicroFreak Web Emulator</title>
+<style>
+  :root {
+    --bg-dark: #0f1013;
+    --panel-bg: #181a20;
+    --card-bg: #21242d;
+    --accent-orange: #ff7700;
+    --accent-amber: #ffaa00;
+    --accent-yellow: #ffcc00;
+    --accent-blue: #0099ff;
+    --copper-glow: #e28743;
+    --copper-dark: #915423;
+    --oled-cyan: #00f0ff;
+    --text-main: #e2e6f0;
+    --text-muted: #8b92a4;
+    --page-spacing: 24px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html {
+    height: 100%;
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none;   /* Safari */
+    -khtml-user-select: none;     /* Konqueror HTML */
+    -moz-user-select: none;      /* Old versions of Firefox */
+    -ms-user-select: none;       /* Internet Explorer/Edge */
+    user-select: none;  
+  }
+  /* Workspace Layout: Left Synthesizer (Chassis only) + Right Side Panel */
+  body {
+    background: var(--bg-dark);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    height: 100vh;
+    min-height: 100vh;
+    padding: var(--page-spacing);
+    overflow: hidden;
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none;   /* Safari */
+    -khtml-user-select: none;     /* Konqueror HTML */
+    -moz-user-select: none;      /* Old versions of Firefox */
+    -ms-user-select: none;       /* Internet Explorer/Edge */
+    user-select: none;  
+  }
+  .synth-workspace {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--page-spacing);
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 0;
+    max-width: none;
+  }
+  .synthesizer-column {
+    display: flex;
+    flex-direction: column;
+    width: 1080px;
+    flex: 0 0 1080px;
+    height: 100%;
+    min-height: 0;
+  }
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--page-spacing);
+    flex: 1 1 0;
+    min-width: 380px;
+    height: 100%;
+    min-height: 0;
+  }
+  .rear-group-card {
+    background: #12151c;
+    border: 1px solid #282f40;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    position: relative;
+    flex: 0 0 auto;
+  }
+  .rear-cards-split-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--page-spacing);
+    width: 100%;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+  }
+  .rear-cards-split-row .rear-group-card {
+    height: 100%;
+    min-width: 0;
+  }
+  .rear-group-title {
+    font-size: 9px;
+    font-weight: 800;
+    color: #727b94;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .rear-jacks-row {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 6px;
+  }
+  .jack-module {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .jack-label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #c4c9d8;
+  }
+  .jack-socket-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .jack-socket {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #384054 25%, #181b24 70%, #0a0c10 100%);
+    border: 2px solid #555f77;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 2px 5px rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .jack-hole {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #000;
+    box-shadow: inset 0 2px 4px #000;
+  }
+  .jack-led-ring {
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    pointer-events: none;
+    transition: border-color 0.08s, box-shadow 0.08s;
+  }
+  .voltmeter-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 2px;
+  }
+  .voltmeter-val {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: #f1f4fb;
+  }
+  .voltmeter-sub {
+    font-size: 8px;
+    font-weight: 600;
+    color: #7e879f;
+  }
+
+  /* Miniature Oscilloscope */
+  .scope-legend {
+    display: flex;
+    gap: 8px;
+    font-size: 8px;
+    font-weight: 700;
+    color: #8b93a7;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .legend-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .cv-scope-canvas {
+    background: #06070a;
+    border: 1px solid #1c212e;
+    border-radius: 4px;
+    width: 100%;
+    height: 52px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.9);
+  }
+
+  /* Master Clock Generator Controls */
+  .clock-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: space-between;
+  }
+  .clk-tap-btn {
+    background: #202634;
+    border: 1px solid #3c455c;
+    color: #fff;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: 0.08s;
+  }
+  .clk-tap-btn:hover { background: #323b50; border-color: #586584; }
+  .clk-tap-btn:active { background: #84cc16; color: #000; box-shadow: 0 0 10px #84cc16; }
+  .clock-gen-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+  }
+  .clock-gen-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: space-between;
+  }
+  .clk-run-btn {
+    background: #242938;
+    border: 1px solid #3d455b;
+    color: #84cc16;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: 0.1s;
+  }
+  .clk-run-btn:hover { background: #30374a; }
+  .clk-run-btn.running {
+    background: #84cc16;
+    color: #0b0e14;
+    box-shadow: 0 0 10px #84cc16;
+    border-color: #a3e635;
+  }
+  .clock-field {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    color: #8b92a4;
+    font-weight: 700;
+  }
+  .clock-num-input, .clock-select {
+    background: #141720;
+    border: 1px solid #2e3547;
+    color: #fff;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: monospace;
+    outline: none;
+  }
+  .clock-num-input { width: 48px; text-align: right; }
+  .clock-slider {
+    width: 100%;
+    height: 4px;
+    background: #202636;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    accent-color: #84cc16;
+  }
+
+  /* Headset & Audio In (TLV320AIC3104) Controls */
+  .codec-controls-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    justify-content: space-between;
+    height: 100%;
+  }
+  .codec-top-row, .codec-bottom-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: space-between;
+  }
+  .codec-select {
+    background: #141720;
+    border: 1px solid #2e3547;
+    color: #fff;
+    padding: 3px 5px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    font-family: inherit;
+    outline: none;
+    flex: 1;
+    min-width: 0;
+  }
+  .codec-select:focus {
+    border-color: #00f0ff;
+  }
+  .codec-btn {
+    background: #242938;
+    border: 1px solid #3d455b;
+    color: #00f0ff;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    transition: 0.1s;
+    user-select: none;
+  }
+  .codec-btn:hover {
+    background: #30374a;
+    border-color: #00f0ff;
+  }
+  .codec-btn:active, .codec-btn.active {
+    background: #00f0ff;
+    color: #0b0e14;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+    border-color: #7df9ff;
+  }
+  .codec-btn.streaming {
+    background: #ec4899;
+    color: #fff;
+    border-color: #f472b6;
+    box-shadow: 0 0 8px rgba(236, 72, 153, 0.6);
+  }
+
+  /* Main Synth Chassis */
+  .chassis {
+    width: 100%;
+    max-width: 1080px;
+    height: 100%;
+    min-height: 0;
+    background: var(--panel-bg);
+    border: 3px solid #2f3442;
+    border-radius: 12px;
+    box-shadow: 0 20px 48px rgba(0,0,0,0.8);
+    padding: var(--page-spacing);
+    display: flex;
+    flex-direction: column;
+    gap: var(--page-spacing);
+    position: relative;
+  }
+
+  /* Section Framing */
+  .section-group {
+    background: var(--card-bg);
+    border: 1px solid #2c3140;
+    border-radius: 8px;
+    padding: 12px 14px;
+    position: relative;
+  }
+  .section-label {
+    position: absolute;
+    top: -9px;
+    left: 14px;
+    background: var(--card-bg);
+    padding: 0 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    border: 1px solid #2c3140;
+    border-radius: 4px;
+  }
+
+  /* Upper Row */
+  .top-row {
+    display: grid;
+    grid-template-columns: 360px 1fr 180px;
+    gap: 16px;
+    flex: 0 0 auto;
+  }
+
+  /* Modulation Matrix Card */
+  .matrix-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .matrix-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .matrix-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+  }
+  .matrix-assign-row {
+    position: relative;
+    height: 18px;
+    margin-bottom: 2px;
+    margin-left: 12px;
+  }
+  .matrix-assign-btn {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #181b24;
+    border: 1.5px solid #3c4254;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    transform: translateX(-50%);
+    transition: 0.12s;
+  }
+  .assign-btn-led {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #252830;
+    transition: 0.15s;
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+  .assign-btn-led.lit {
+    background: var(--accent-yellow);
+    opacity: var(--led-bright, 1.0);
+    box-shadow: 0 0 calc(7px * var(--led-bright, 1.0)) var(--accent-amber);
+  }
+  /* Assign 1..3 button positions calculated from angle of labels:
+     Column center + label_height * tan(45deg). Since tan(45deg) = 1.0,
+     the horizontal offset equals the label height (34px). */
+  #btn-assign-1 { left: calc(75px + 4 * 27px + 34px); }
+  #btn-assign-2 { left: calc(75px + 5 * 27px + 34px); }
+  #btn-assign-3 { left: calc(75px + 6 * 27px + 34px); }
+
+  .matrix-col-headers {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 24px);
+    gap: 3px;
+    margin-bottom: 0px;
+    margin-left: 16px;
+  }
+  .matrix-col-header {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: bold;
+    transform: rotate(-45deg);
+    white-space: nowrap;
+    height: 36px;
+    margin-top: 12px;
+    margin-bottom: -12px;
+    display: flex;
+    align-items: left;
+    justify-content: left;
+  }
+  .matrix-row {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 24px);
+    gap: 3px;
+    align-items: center;
+  }
+  .matrix-row-label {
+    font-size: 9px;
+    font-weight: bold;
+    color: var(--text-muted);
+    text-align: right;
+    padding-right: 6px;
+    text-transform: uppercase;
+  }
+  .matrix-led {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #111317;
+    border: 1px solid #333847;
+    pointer-events: none;
+    cursor: default;
+    position: relative;
+    transition: background 0.1s, box-shadow 0.1s, border-color 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .matrix-led::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #252830;
+    transition: opacity 0.15s, box-shadow 0.15s;
+    opacity: 0.3;
+  }
+  .matrix-led.lit::after {
+    background: var(--accent-yellow);
+    opacity: var(--led-bright, 1.0);
+    box-shadow: 0 0 calc(8px * var(--led-bright, 1.0)) var(--accent-amber);
+  }
+
+  .matrix-encoder-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  /* Center Screen & Preset Card */
+  .center-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .screen-group {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: auto;
+  }
+  .oled-bezel {
+    background: #000;
+    border: 3px solid #282c38;
+    border-radius: 6px;
+    padding: 6px;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.9);
+  }
+  #oled-canvas {
+    width: 256px;
+    height: 128px;
+    image-rendering: pixelated;
+    display: block;
+    background: #050b10;
+  }
+  .top-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+
+  /* Upper Right: Global Column & Brand Title Strip */
+  .global-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    min-width: 0;
+  }
+  .brand-strip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 6px 4px 14px 4px;
+    gap: 5px;
+    white-space: nowrap;
+    user-select: none;
+    flex-grow: 1;
+  }
+  .brand-title {
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #ffffff;
+    line-height: 1.1;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  }
+  .brand-subtitle {
+    font-size: 11px;
+    font-style: italic;
+    color: var(--accent-orange);
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    line-height: 1.1;
+  }
+
+  .right-card {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 12px;
+  }
+  .global-buttons-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+
+  /* Knobs & Encoders Styling */
+  .knob-control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .knob-cap {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #3d4250, #17181f);
+    border: 2px solid #545a6c;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.25);
+    position: relative;
+    cursor: ns-resize;
+  }
+  .knob-cap.pressed {
+    transform: scale(0.94);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.8), inset 0 2px 4px rgba(0,0,0,0.6);
+  }
+  .knob-cap.large {
+    width: 62px;
+    height: 62px;
+  }
+  .knob-cap.orange {
+    border-color: #ff8822;
+    box-shadow: 0 4px 10px rgba(255, 120, 0, 0.25), inset 0 1px 2px rgba(255,255,255,0.3);
+  }
+  .knob-cap.white {
+    background: radial-gradient(circle at 35% 35%, #f0f2f5, #b8bdc8);
+    border-color: #ffffff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.6), inset 0 1px 2px #fff;
+  }
+  .knob-cap.white .knob-indicator {
+    background: #111;
+  }
+  .knob-indicator {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    width: 3px;
+    height: 14px;
+    background: var(--accent-orange);
+    border-radius: 2px;
+    transform-origin: 50% 20px;
+    transform: translateX(-50%) rotate(0deg);
+  }
+  .knob-cap.large .knob-indicator {
+    height: 18px;
+    top: 5px;
+    transform-origin: 50% 26px;
+  }
+  .knob-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .knob-value {
+    font-size: 10px;
+    color: var(--text-main);
+    font-family: monospace;
+  }
+
+  /* Buttons */
+  .mf-btn {
+    background: #242834;
+    border: 1px solid #3c4254;
+    color: #e2e6f0;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.12s;
+  }
+  .mf-btn.active {
+    background: #373228;
+    border-color: var(--accent-orange);
+    color: var(--accent-orange);
+    box-shadow: 0 0 8px rgba(255,120,0,0.4);
+  }
+  .mf-btn.round {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 50%;
+    justify-content: center;
+  }
+  .round-btn-control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-silkscreen-label {
+    font-size: 8.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    text-align: center;
+  }
+
+
+  /* Middle Controls Row */
+  .middle-row {
+    display: grid;
+    grid-template-columns: 360px 240px 1fr;
+    gap: 16px;
+  }
+  .knobs-flex {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding-top: 4px;
+    height: 100%;
+  }
+  .filter-controls-group {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    justify-content: space-around;
+  }
+  .mode-indicator-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .led-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+    font-weight: bold;
+    color: var(--text-muted);
+  }
+  .mini-led {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #11141a;
+    border: 1px solid #333a4a;
+  }
+  .mini-led.lit {
+    background: var(--accent-orange);
+    opacity: var(--led-bright, 1.0);
+    box-shadow: 0 0 calc(6px * var(--led-bright, 1.0)) var(--accent-orange);
+  }
+
+  /* Bottom Controls Row */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 105px 56px 215px 225px 1fr;
+    gap: 14px;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+  .octave-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .octave-button-pair {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .octave-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(30, 34, 46, 0.85);
+    border: 1.5px solid #3c4254;
+    cursor: pointer;
+    transition: background-color 0.1s ease, box-shadow 0.1s ease, border-color 0.1s ease;
+    user-select: none;
+    position: relative;
+    padding: 0;
+  }
+  .octave-btn:active,
+  .octave-btn.pressed {
+    transform: translateY(1px);
+    filter: brightness(0.9);
+  }
+  .btn-silkscreen-label.oct-arrow-label {
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--text-muted);
+  }
+
+  /* Sequencer 1 2 3 4 Silkscreen & Arp Sync */
+  .seq-buttons-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .seq-tracks-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 48px;
+    padding: 2px 0;
+  }
+  .seq-track-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 8px;
+    font-weight: 800;
+    color: var(--text-muted);
+    line-height: 1;
+  }
+  .seq-track-row.active span {
+    color: #fff;
+  }
+  .sync-indicator-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 2px;
+  }
+  .sync-label {
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+  }
+
+  /* LFO 6 Silkscreened Waveforms */
+  .lfo-shapes-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 34px);
+    grid-template-rows: repeat(3, 14px);
+    gap: 3px 6px;
+    align-items: center;
+  }
+  .lfo-wave-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: 0.12s;
+  }
+  .wave-icon {
+    width: 16px;
+    height: 10px;
+    display: block;
+  }
+
+  /* Icon Strip & Touch Ribbon */
+  .icon-strip-container {
+    background: #101216;
+    border: 2px solid #282c38;
+    border-radius: 8px;
+    padding: 8px 14px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 18px;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+  .icon-buttons-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .icon-btn {
+    position: relative;
+    background: #191c24;
+    border: 1px solid #333a4c;
+    border-radius: 6px;
+    padding: 4px 10px 6px 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    min-width: 50px;
+    transition: 0.12s;
+    user-select: none;
+  }
+  .icon-btn:active { background: #141720; }
+  .icon-led {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #252830;
+    transition: 0.15s;
+    box-shadow: none;
+    margin-bottom: 1px;
+  }
+  .icon-led.lit {
+    background: var(--accent-orange);
+    opacity: var(--led-bright, 1.0);
+    box-shadow: 0 0 calc(6px * var(--led-bright, 1.0)) var(--accent-orange);
+  }
+  .icon-btn-symbol {
+    font-size: 14px;
+    font-weight: bold;
+    filter: grayscale(1);
+  }
+  .icon-btn-label { font-size: 8px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); }
+
+  /* Touch Slider Ribbon (6 Tilted-W Zigzags) */
+  .touch-strip-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .strip-modes {
+    display: flex;
+    gap: 6px;
+  }
+  .touch-ribbon {
+    flex: 1;
+    height: 52px;
+    background: #090a0d;
+    border: 2px solid #373d4d;
+    border-radius: 6px;
+    position: relative;
+    cursor: crosshair;
+    overflow: hidden;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .touch-ribbon svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .ribbon-cursor {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: var(--copper-glow);
+    box-shadow: 0 0 12px var(--accent-orange);
+    transform: translateX(-50%);
+    pointer-events: none;
+    display: none;
+  }
+
+  /* Capacitive Touch Keybed */
+  .keybed-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #0d0e12;
+    border: 2px solid #242834;
+    border-radius: 8px;
+    padding: 10px 14px;
+    flex: 1 1 0;
+    min-height: 120px;
+  }
+
+  .keybed-container {
+    position: relative;
+    flex: 1 1 0;
+    height: 100%;
+    min-height: 0;
+    background: #111317;
+    border: 2px solid #2b303d;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .white-key {
+    flex: 1;
+    height: 100%;
+    background: #eef1f6;
+    border-right: 1px solid #8e95a5;
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding-bottom: 6px;
+    transition: background 0.08s;
+  }
+  .white-key:last-child { border-right: none; }
+  .white-key .pcb-copper-dots {
+    position: absolute;
+    top: 6px;
+    bottom: 4px;
+    left: 4px;
+    right: 4px;
+    background-image: radial-gradient(circle, var(--copper-dark) 2px, transparent 2px);
+    background-size: 6px 6px;
+    border: 1px solid var(--copper-dark);
+    border-radius: 2px;
+    pointer-events: none;
+    opacity: 0.65;
+    transition: opacity 0.1s, box-shadow 0.1s;
+  }
+  .white-key.active .pcb-copper-dots {
+    opacity: 1.0;
+    background-image: radial-gradient(circle, var(--accent-orange) 2px, transparent 2px);
+    box-shadow: inset 0 0 10px var(--accent-orange);
+  }
+  .white-key.active {
+    background: #ffe8cc;
+  }
+  .black-key {
+    position: absolute;
+    top: 0;
+    width: 4.8%;
+    height: 60%;
+    background: #1c1e24;
+    border: 1px solid #3a3f50;
+    border-top: none;
+    border-radius: 0 0 3px 3px;
+    z-index: 10;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding-bottom: 4px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.6);
+  }
+  .black-key .pcb-copper-dots {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 3px;
+    right: 3px;
+    background-image: radial-gradient(circle, var(--copper-glow) 2px, transparent 2px);
+    background-size: 6px 6px;
+    border: 1px solid var(--copper-glow);
+    border-radius: 2px;
+    pointer-events: none;
+    opacity: 0.5;
+    transition: opacity 0.1s;
+  }
+  .black-key.active .pcb-copper-dots {
+    opacity: 1.0;
+    box-shadow: inset 0 0 8px var(--accent-orange);
+  }
+  .black-key.active {
+    background: #3d3020;
+    border-color: var(--accent-orange);
+  }
+  .white-key.latched, .black-key.latched {
+    box-shadow: 0 0 10px var(--accent-orange), inset 0 0 6px var(--accent-orange) !important;
+    border-color: var(--accent-orange) !important;
+  }
+  .key-label {
+    font-size: 9px;
+    font-weight: 800;
+    color: #4b5262;
+    pointer-events: none;
+  }
+  .black-key .key-label { color: #8e95a5; }
+
+  @media (max-width: 1540px) {
+    body {
+      height: auto;
+      min-height: 100vh;
+      overflow-y: auto;
+    }
+    .synth-workspace {
+      flex-direction: column;
+      align-items: center;
+      height: auto;
+    }
+    .synthesizer-column {
+      width: 100%;
+      max-width: 1080px;
+      flex: 0 1 auto;
+      height: auto;
+    }
+    .chassis {
+      height: auto;
+    }
+    .right-panel {
+      width: 100%;
+      max-width: 1080px;
+      min-width: 0;
+      height: auto;
+    }
+    .keybed-section {
+      min-height: 200px;
+    }
+    .keybed-container {
+      height: 200px;
+    }
+    .swd-terminal-card {
+      min-height: 320px;
+    }
+    .swd-output-view {
+      min-height: 200px;
+      max-height: 360px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .rear-cards-split-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-height: 680px) and (min-width: 1541px) {
+    body {
+      height: auto;
+      min-height: 100vh;
+      overflow-y: auto;
+    }
+    .synth-workspace {
+      height: 640px;
+    }
+  }
+
+  /* ARM Cortex-M SWD / JTAG Debug Console */
+  .swd-terminal-card {
+    background: #0d0f14;
+    border: 1px solid #2b3142;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1 1 0;
+    min-height: 140px;
+  }
+  .swd-header {
+    background: #171a22;
+    border-bottom: 1px solid #293040;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+    flex: 0 0 auto;
+  }
+  .swd-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .swd-title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    color: #00f0ff;
+    text-transform: uppercase;
+  }
+  .swd-status-pill {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #1e3a24;
+    color: #4ade80;
+    border: 1px solid #22c55e;
+    letter-spacing: 0.5px;
+    transition: 0.15s;
+  }
+  .swd-status-pill.halted {
+    background: #3b1b1b;
+    color: #f87171;
+    border-color: #ef4444;
+  }
+  .swd-quick-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 10px;
+    background: #11131a;
+    border-bottom: 1px solid #202534;
+    flex: 0 0 auto;
+  }
+  .swd-quick-btn {
+    background: #1a1e29;
+    border: 1px solid #32394d;
+    color: #9aa2b5;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    font-family: monospace;
+    cursor: pointer;
+    transition: 0.1s;
+  }
+  .swd-quick-btn:hover {
+    background: #283042;
+    color: #00f0ff;
+    border-color: #00f0ff;
+  }
+  .swd-output-view {
+    background: #080a0f;
+    color: #cbd5e1;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    line-height: 1.45;
+    padding: 10px;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .swd-input-wrap {
+    display: flex;
+    align-items: center;
+    background: #10131a;
+    border-top: 1px solid #202636;
+    padding: 6px 10px;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+  .swd-prompt-prefix {
+    color: #00f0ff;
+    font-family: monospace;
+    font-weight: 800;
+    font-size: 11px;
+  }
+  .swd-input-field {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #f1f5f9;
+    font-family: monospace;
+    font-size: 11px;
+  }
+  .swd-send-btn {
+    background: #1f2533;
+    border: 1px solid #363f54;
+    color: #00f0ff;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .swd-send-btn:hover {
+    background: #2b3347;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="synth-workspace">
+  <!-- Left Column: Synthesizer Chassis (Sole element in synthesizer column) -->
+  <div class="synthesizer-column">
+    <div class="chassis">
+
+  <!-- TOP ROW: Modulation Matrix, Center Screen & Preset, Master & Utility -->
+  <div class="top-row">
+
+    <!-- 5x7 Modulation Matrix -->
+    <div class="section-group matrix-card">
+      <span class="section-label">Modulation Matrix</span>
+      <div class="matrix-wrapper">
+        <div class="matrix-container matrix-grid" id="matrix-container">
+          <div class="matrix-assign-row">
+            <button class="matrix-assign-btn" id="btn-assign-1" data-col="4" title="Assign 1 destination button">
+              <span class="assign-btn-led" id="led-assign-1"></span>
+            </button>
+            <button class="matrix-assign-btn" id="btn-assign-2" data-col="5" title="Assign 2 destination button">
+              <span class="assign-btn-led" id="led-assign-2"></span>
+            </button>
+            <button class="matrix-assign-btn" id="btn-assign-3" data-col="6" title="Assign 3 destination button">
+              <span class="assign-btn-led" id="led-assign-3"></span>
+            </button>
+          </div>
+          <div class="matrix-col-headers">
+            <div></div>
+            <div class="matrix-col-header">Pitch</div>
+            <div class="matrix-col-header">Wave</div>
+            <div class="matrix-col-header">Timbre</div>
+            <div class="matrix-col-header">Cutoff</div>
+            <div class="matrix-col-header">Assign 1</div>
+            <div class="matrix-col-header">Assign 2</div>
+            <div class="matrix-col-header">Assign 3</div>
+          </div>
+          <!-- Rows will be injected by JavaScript -->
+        </div>
+
+        <div class="matrix-encoder-col">
+          <div class="knob-control">
+            <div class="knob-cap white is-encoder" id="matrix-encoder" data-encoder="matrix" data-microswitch="matrix" title="Turn to scroll points / adjust amount, Press to select or edit">
+              <div class="knob-indicator"></div>
+            </div>
+            <span class="knob-label">Matrix</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Display & Encoders -->
+    <div class="section-group center-card">
+      <span class="section-label">Display & Preset</span>
+      <div class="screen-group">
+        <div class="top-buttons">
+          <div class="round-btn-control">
+            <button class="mf-btn round" id="panel-btn" title="Toggle Panel mode"></button>
+            <span class="btn-silkscreen-label">Panel</span>
+          </div>
+          <div class="round-btn-control">
+            <button class="mf-btn round" id="paraphonic-btn" title="Toggle Paraphonic mode"></button>
+            <span class="btn-silkscreen-label">Paraphonic</span>
+          </div>
+        </div>
+        <div class="oled-bezel">
+          <canvas id="oled-canvas" width="128" height="64"></canvas>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap white is-encoder" id="preset-encoder" data-encoder="preset" data-microswitch="preset" title="Rotate to change preset 1..512, Press to open preset list or confirm">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Preset</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upper Right: Title Strip & Global Box -->
+    <div class="global-column">
+      <div class="brand-strip">
+        <span class="brand-title">VIBE FREAK</span>
+        <span class="brand-subtitle">“un grain de slop”</span>
+      </div>
+      <div class="section-group right-card">
+        <span class="section-label">Global</span>
+        <div class="global-buttons-stack">
+          <div class="round-btn-control">
+            <button class="mf-btn round" id="utility-btn" title="Utility settings"></button>
+            <span class="btn-silkscreen-label">Utility</span>
+          </div>
+          <div class="round-btn-control">
+            <button class="mf-btn round" id="save-btn" title="Save preset"></button>
+            <span class="btn-silkscreen-label">Save</span>
+          </div>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap large" id="pot-master" data-potentiometer="16">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Master</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MIDDLE ROW: Digital Oscillator, Analog Filter, Cycling Envelope -->
+  <div class="middle-row">
+
+    <!-- DIGITAL OSCILLATOR -->
+    <div class="section-group">
+      <span class="section-label">Digital Oscillator</span>
+      <div class="knobs-flex">
+        <div class="knob-control">
+          <div class="knob-cap" id="pot-glide" data-potentiometer="10">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Glide</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap orange is-encoder" id="type-encoder" data-encoder="type" title="Type endless encoder (cycles synthesis engine)">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Type</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap orange is-encoder" id="wave-encoder" data-encoder="wave" title="Wave endless encoder">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Wave</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap orange is-encoder" id="timbre-encoder" data-encoder="timbre" title="Timbre endless encoder">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Timbre</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap orange is-encoder" id="shape-encoder" data-encoder="shape" title="Shape endless encoder">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Shape</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALOG FILTER -->
+    <div class="section-group">
+      <span class="section-label">Analog Filter</span>
+      <div class="filter-controls-group">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+          <div class="round-btn-control">
+            <button class="mf-btn round" id="filter-type-btn" title="Filter Type"></button>
+            <span class="btn-silkscreen-label">Type</span>
+          </div>
+          <div class="mode-indicator-stack">
+            <div class="led-row"><div class="mini-led lit" id="led-lpf"></div>LPF</div>
+            <div class="led-row"><div class="mini-led" id="led-bpf"></div>BPF</div>
+            <div class="led-row"><div class="mini-led" id="led-hpf"></div>HPF</div>
+          </div>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap large" id="pot-cutoff" data-potentiometer="2">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Cutoff</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap" id="pot-resonance" data-potentiometer="3">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Resonance</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CYCLING ENVELOPE -->
+    <div class="section-group">
+      <span class="section-label">Cycling Envelope</span>
+      <div class="knobs-flex">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+          <div class="round-btn-control">
+            <button class="mf-btn round" id="cyc-mode-btn" title="Cycling Envelope Mode"></button>
+            <span class="btn-silkscreen-label">Mode</span>
+          </div>
+          <div class="mode-indicator-stack">
+            <div class="led-row"><div class="mini-led lit" id="led-cyc-env"></div>Env</div>
+            <div class="led-row"><div class="mini-led" id="led-cyc-run"></div>Run</div>
+            <div class="led-row"><div class="mini-led" id="led-cyc-loop"></div>Loop</div>
+          </div>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap" id="pot-cyc-rise" data-potentiometer="12">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Rise / Shape</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap" id="pot-cyc-fall" data-potentiometer="13">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Fall / Shape</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap" id="pot-cyc-hold" data-potentiometer="14">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Hold /Sust</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap" id="pot-cyc-amount" data-potentiometer="15">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Amount</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM ROW: Octave, Shift, Arp/Seq, LFO, Envelope -->
+  <div class="bottom-row">
+
+    <!-- OCTAVE -->
+    <div class="section-group octave-section">
+      <span class="section-label">Octave</span>
+      <div class="octave-button-pair">
+        <div class="round-btn-control">
+          <button class="mf-btn round octave-btn" id="oct-down-btn" title="Octave Down"></button>
+          <span class="btn-silkscreen-label oct-arrow-label">←</span>
+        </div>
+        <div class="round-btn-control">
+          <button class="mf-btn round octave-btn" id="oct-up-btn" title="Octave Up"></button>
+          <span class="btn-silkscreen-label oct-arrow-label">→</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHIFT -->
+    <div class="round-btn-control" style="align-self: center;">
+      <button class="mf-btn round" id="shift-btn" style="border-color: var(--accent-blue);" title="Shift button"></button>
+      <span class="btn-silkscreen-label" style="color: var(--accent-blue);">Shift</span>
+    </div>
+
+    <!-- ARP / SEQ -->
+    <div class="section-group" style="display: flex; align-items: center; gap: 8px;">
+      <span class="section-label">Arp / Seq</span>
+      <div class="seq-buttons-stack" style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="round-btn-control">
+          <button class="mf-btn round" id="arp-seq-btn" title="Toggle Arpeggiator / Sequencer"></button>
+          <span class="btn-silkscreen-label">Arp | Seq</span>
+        </div>
+        <div class="round-btn-control">
+          <button class="mf-btn round" id="oct-mod-btn" title="Cycle Arp Octave / Mod Tracks 1..4"></button>
+          <span class="btn-silkscreen-label">Oct | Mod</span>
+        </div>
+      </div>
+      <div class="seq-tracks-col">
+        <div class="seq-track-row" id="row-seq-1"><div class="mini-led lit" id="led-seq-1"></div><span>1</span></div>
+        <div class="seq-track-row" id="row-seq-2"><div class="mini-led" id="led-seq-2"></div><span>2</span></div>
+        <div class="seq-track-row" id="row-seq-3"><div class="mini-led" id="led-seq-3"></div><span>3</span></div>
+        <div class="seq-track-row" id="row-seq-4"><div class="mini-led" id="led-seq-4"></div><span>4</span></div>
+      </div>
+      <div class="knob-control">
+        <div class="sync-indicator-wrapper">
+          <div class="mini-led" id="led-arp-sync"></div>
+          <span class="sync-label">Sync</span>
+        </div>
+        <div class="knob-cap white is-encoder" id="rate-encoder" data-encoder="rate" data-microswitch="rate" title="Turn to adjust Rate / Swing, Press to toggle Arp Sync">
+          <div class="knob-indicator"></div>
+        </div>
+        <span class="knob-label">Rate / Swing</span>
+      </div>
+    </div>
+
+    <!-- LFO -->
+    <div class="section-group" style="display: flex; align-items: center; gap: 8px;">
+      <span class="section-label">LFO</span>
+      <div class="round-btn-control">
+        <button class="mf-btn round" id="lfo-shape-btn" title="Cycle LFO waveform"></button>
+        <span class="btn-silkscreen-label">Shape</span>
+      </div>
+      <div class="lfo-shapes-grid">
+        <div class="lfo-wave-row active" id="lfo-row-0" data-shape="0" title="Sine">
+          <div class="mini-led lit" id="led-lfo-0"></div>
+          <svg class="wave-icon" viewBox="0 0 16 10"><path d="M 1,5 Q 4,0 8,5 T 15,5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <div class="lfo-wave-row" id="lfo-row-3" data-shape="3" title="Square">
+          <div class="mini-led" id="led-lfo-3"></div>
+          <svg class="wave-icon" viewBox="0 0 16 10"><path d="M 1,8 L 1,2 L 8,2 L 8,8 L 15,8 L 15,2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="lfo-wave-row" id="lfo-row-1" data-shape="1" title="Triangle">
+          <div class="mini-led" id="led-lfo-1"></div>
+          <svg class="wave-icon" viewBox="0 0 16 10"><path d="M 1,8 L 8,2 L 15,8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="lfo-wave-row" id="lfo-row-4" data-shape="4" title="Random Sample & Hold">
+          <div class="mini-led" id="led-lfo-4"></div>
+          <svg class="wave-icon" viewBox="0 0 16 10"><path d="M 1,8 L 5,8 L 5,2 L 10,2 L 10,5 L 15,5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <div class="lfo-wave-row" id="lfo-row-2" data-shape="2" title="Sawtooth">
+          <div class="mini-led" id="led-lfo-2"></div>
+          <svg class="wave-icon" viewBox="0 0 16 10"><path d="M 1,2 L 15,8 L 15,2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="lfo-wave-row" id="lfo-row-5" data-shape="5" title="Smooth Random">
+          <div class="mini-led" id="led-lfo-5"></div>
+          <svg class="wave-icon" viewBox="0 0 16 10"><path d="M 1,6 C 3,2 5,8 8,4 C 11,1 13,8 15,5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+      <div class="knob-control">
+        <div class="sync-indicator-wrapper">
+          <div class="mini-led" id="led-lfo-sync"></div>
+          <span class="sync-label">Sync</span>
+        </div>
+        <div class="knob-cap white is-encoder" id="lfo-rate-encoder" data-encoder="lfo_rate" data-microswitch="lfo_rate" title="Turn to adjust LFO Rate, Press to toggle LFO Sync">
+          <div class="knob-indicator"></div>
+        </div>
+        <span class="knob-label">Rate</span>
+      </div>
+    </div>
+
+    <!-- ENVELOPE -->
+    <div class="section-group">
+      <span class="section-label">Envelope</span>
+      <div class="knobs-flex">
+        <div class="round-btn-control">
+          <button class="mf-btn round" id="amp-mod-btn" title="Toggle Amp Mod"></button>
+          <span class="btn-silkscreen-label">Amp Mod</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap" id="pot-attack" data-potentiometer="7">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Attack</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap" id="pot-decay" data-potentiometer="8">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Decay / Rel</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap" id="pot-sustain" data-potentiometer="9">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Sustain</span>
+        </div>
+        <div class="knob-control">
+          <div class="knob-cap" id="pot-filter-amt" data-potentiometer="11">
+            <div class="knob-indicator"></div>
+          </div>
+          <span class="knob-label">Filter Amt</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ICON STRIP & MULTI-FUNCTION TOUCH RIBBON -->
+  <div class="icon-strip-container">
+
+    <!-- 5 Arp/Seq Icons -->
+    <div class="icon-buttons-group">
+      <div class="icon-btn" id="icon-hold" title="Key Hold / Sustain">
+        <span class="icon-led" id="led-icon-hold"></span>
+        <span class="icon-btn-symbol">&#9834;&#8212;</span>
+        <span class="icon-btn-label">Hold</span>
+      </div>
+      <div class="icon-btn" id="icon-up" title="Arp / Seq Up | A">
+        <span class="icon-led" id="led-icon-up"></span>
+        <span class="icon-btn-symbol">&uarr;</span>
+        <span class="icon-btn-label">Up | A</span>
+      </div>
+      <div class="icon-btn" id="icon-order" title="Arp / Seq Order | B">
+        <span class="icon-led" id="led-icon-order"></span>
+        <span class="icon-btn-symbol">🎹</span>
+        <span class="icon-btn-label">Order | B</span>
+      </div>
+      <div class="icon-btn" id="icon-random" title="Arp / Seq Random">
+        <span class="icon-led" id="led-icon-random"></span>
+        <span class="icon-btn-symbol">&there4;</span>
+        <span class="icon-btn-label">Random</span>
+      </div>
+      <div class="icon-btn" id="icon-pattern" title="Arp / Seq Pattern">
+        <span class="icon-led" id="led-icon-pattern"></span>
+        <span class="icon-btn-symbol">&#9654;&#9654;</span>
+        <span class="icon-btn-label">Pattern</span>
+      </div>
+    </div>
+
+    <!-- 3 Touch Strip Modes & Authentic Zigzag Ribbon -->
+    <div class="touch-strip-section">
+      <div class="strip-modes">
+        <div class="icon-btn" id="icon-spice" title="Spice variation amount">
+          <span class="icon-led" id="led-icon-spice"></span>
+          <span class="icon-btn-symbol">&#127798;</span>
+          <span class="icon-btn-label">Spice</span>
+        </div>
+        <div class="icon-btn" id="icon-dice" title="Dice (randomizes gates)">
+          <span class="icon-led" id="led-icon-dice"></span>
+          <span class="icon-btn-symbol">&#127922;</span>
+          <span class="icon-btn-label">Dice</span>
+        </div>
+        <div class="icon-btn" id="icon-bend" title="Pitch Bend">
+          <span class="icon-led" id="led-icon-bend"></span>
+          <span class="icon-btn-symbol">&#8646;</span>
+          <span class="icon-btn-label">Bend</span>
+        </div>
+      </div>
+
+      <!-- Capacitive Ribbon with 6 tilted-W copper zigzag patterns -->
+      <div class="touch-ribbon" id="touch-ribbon">
+        <svg viewBox="0 0 600 60" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="copper-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#df9b56" />
+              <stop offset="50%" stop-color="#9d5522" />
+              <stop offset="100%" stop-color="#c8793b" />
+            </linearGradient>
+          </defs>
+          <!-- 6 tilted-W copper zigzag tracks -->
+          <g stroke="url(#copper-grad)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Center neutral line indicator -->
+            <line x1="300" y1="2" x2="300" y2="58" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3" />
+            <!-- Zigzags 1 to 6 -->
+            <path d="M 10,30 L 30,10 L 50,50 L 70,10 L 90,50 L 100,40" />
+            <path d="M 110,30 L 130,10 L 150,50 L 170,10 L 190,50 L 200,40" />
+            <path d="M 210,30 L 230,10 L 250,50 L 270,10 L 290,50 L 300,40" />
+            <path d="M 310,30 L 330,10 L 350,50 L 370,10 L 390,50 L 400,40" />
+            <path d="M 410,30 L 430,10 L 450,50 L 470,10 L 490,50 L 500,40" />
+            <path d="M 510,30 L 530,10 L 550,50 L 570,10 L 590,50 L 595,40" />
+          </g>
+        </svg>
+        <div class="ribbon-cursor" id="ribbon-cursor"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CAPACITIVE TOUCH KEYBED (25 Keys with Copper Sensor Patterns) -->
+  <div class="keybed-section">
+    <div class="keybed-container" id="keybed-container">
+      <!-- 25 capacitive keys generated by JS -->
+    </div>
+  </div>
+
+</div>
+  </div> <!-- closes .synthesizer-column -->
+
+  <!-- Right Column: Rear Group Cards & SWD Debugger Console -->
+  <div class="right-panel" id="right-panel">
+    <!-- Row 1: CV & Gate Outputs -->
+    <div class="rear-group-card" id="card-cv-gate">
+      <div class="rear-group-title">
+        <span>CV & Gate Outputs</span>
+        <span style="color:#565f76; font-size:8px">ANALOG</span>
+      </div>
+      <div class="rear-jacks-row">
+        <!-- CV OUT (Pitch) -->
+        <div class="jack-module" id="jack-mod-cv">
+          <span class="jack-label">CV OUT</span>
+          <div class="jack-socket-wrap">
+            <div class="jack-socket">
+              <div class="jack-hole"></div>
+            </div>
+            <div class="jack-led-ring" id="led-cv-pitch"></div>
+          </div>
+          <div class="voltmeter-badge">
+            <span class="voltmeter-val" id="cv-pitch-volts">+0.000 V</span>
+            <span class="voltmeter-sub" id="cv-pitch-note">C0 +0ct</span>
+          </div>
+        </div>
+
+        <!-- GATE OUT -->
+        <div class="jack-module" id="jack-mod-gate">
+          <span class="jack-label">GATE OUT</span>
+          <div class="jack-socket-wrap">
+            <div class="jack-socket">
+              <div class="jack-hole"></div>
+            </div>
+            <div class="jack-led-ring" id="led-cv-gate"></div>
+          </div>
+          <div class="voltmeter-badge">
+            <span class="voltmeter-val" id="cv-gate-volts">0.00 V</span>
+            <span class="voltmeter-sub" id="cv-gate-mode">Off (0V)</span>
+          </div>
+        </div>
+
+        <!-- PRESSURE OUT -->
+        <div class="jack-module" id="jack-mod-pressure">
+          <span class="jack-label">PRESSURE</span>
+          <div class="jack-socket-wrap">
+            <div class="jack-socket">
+              <div class="jack-hole"></div>
+            </div>
+            <div class="jack-led-ring" id="led-cv-pressure"></div>
+          </div>
+          <div class="voltmeter-badge">
+            <span class="voltmeter-val" id="cv-press-volts">+0.000 V</span>
+            <span class="voltmeter-sub" id="cv-press-pct">0.0%</span>
+          </div>
+        </div>
+
+        <!-- CLK OUT -->
+        <div class="jack-module" id="jack-mod-clkout">
+          <span class="jack-label">CLK OUT</span>
+          <div class="jack-socket-wrap">
+            <div class="jack-socket">
+              <div class="jack-hole"></div>
+            </div>
+            <div class="jack-led-ring" id="led-cv-clkout"></div>
+          </div>
+          <div class="voltmeter-badge">
+            <span class="voltmeter-val" id="cv-clkout-volts">0.00 V</span>
+            <span class="voltmeter-sub" id="cv-clkout-state">0V</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Oscilloscope Waveform Display -->
+    <div class="rear-group-card" id="card-cv-scope">
+      <div class="rear-group-title">
+        <span>Real-Time CV Monitor</span>
+        <div class="scope-legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span><span>Pitch</span></div>
+          <div class="legend-item"><span class="legend-dot" style="background:#06b6d4"></span><span>Gate</span></div>
+          <div class="legend-item"><span class="legend-dot" style="background:#ec4899"></span><span>Press</span></div>
+          <div class="legend-item"><span class="legend-dot" style="background:#84cc16"></span><span>Clock</span></div>
+        </div>
+      </div>
+      <canvas id="cv-oscilloscope" class="cv-scope-canvas" height="52"></canvas>
+    </div>
+
+    <!-- Row 3: Clock In & Headset / Audio In (Split 50% / 50%) -->
+    <div class="rear-cards-split-row">
+      <!-- Clock In & Virtual Master Clock Generator -->
+      <div class="rear-group-card" id="card-clock">
+        <div class="rear-group-title">
+          <span>Clock In & Master Generator</span>
+          <span style="color:#84cc16; font-size:8px">SYNC</span>
+        </div>
+        <div class="clock-input-wrap">
+          <!-- CLK IN Jack & Tap Button -->
+          <div class="jack-module" id="jack-mod-clkin">
+            <span class="jack-label">CLK IN</span>
+            <div class="jack-socket-wrap">
+              <div class="jack-socket">
+                <div class="jack-hole"></div>
+              </div>
+              <div class="jack-led-ring" id="led-cv-clkin"></div>
+            </div>
+            <button class="clk-tap-btn" id="clk-in-tap-btn" title="Tap to send manual clock pulse / step">TAP</button>
+          </div>
+
+          <!-- Master Clock Generator Controls -->
+          <div class="clock-gen-controls">
+            <div class="clock-gen-top">
+              <button class="clk-run-btn" id="clk-gen-run-btn" title="Run / Stop virtual master clock">RUN</button>
+              <div class="clock-field">
+                <label for="clk-gen-bpm">BPM</label>
+                <input type="number" id="clk-gen-bpm" class="clock-num-input" min="30" max="300" step="0.5" value="120.0" />
+              </div>
+              <div class="clock-field">
+                <label for="clk-gen-ppq">RATE</label>
+                <select id="clk-gen-ppq" class="clock-select">
+                  <option value="1">1 Step</option>
+                  <option value="2">2 PPQ</option>
+                  <option value="24" selected>24 PPQ</option>
+                  <option value="48">48 PPQ</option>
+                </select>
+              </div>
+            </div>
+            <input type="range" id="clk-gen-bpm-slider" class="clock-slider" min="30" max="300" step="0.5" value="120.0" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Headset & Audio In (TLV320AIC3104 Codec) -->
+      <div class="rear-group-card" id="card-codec">
+        <div class="rear-group-title">
+          <span>Headset & Audio In</span>
+          <span style="color:#00f0ff; font-size:8px">AIC3104</span>
+        </div>
+        <div class="codec-controls-wrap">
+          <div class="codec-top-row">
+            <div class="jack-module" id="jack-mod-headset" style="flex:0 0 auto;">
+              <span class="jack-label">TRRS</span>
+              <div class="jack-socket-wrap">
+                <div class="jack-socket">
+                  <div class="jack-hole"></div>
+                </div>
+                <div class="jack-led-ring" id="led-codec-headset"></div>
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:0;">
+              <select id="codec-jack-state" class="codec-select" title="Physical 3.5mm Headset Jack Insertion">
+                <option value="disconnected">Unplugged</option>
+                <option value="headphones">Headphones (TRS)</option>
+                <option value="headset_with_mic" selected>Headset + Mic (TRRS)</option>
+              </select>
+              <div style="display:flex; gap:4px;">
+                <select id="codec-input-source" class="codec-select" title="ADC Audio Input Source">
+                  <option value="mic_in" selected>Mic In</option>
+                  <option value="line_in">Line In</option>
+                </select>
+                <button class="codec-btn" id="codec-btn-hook" title="Momentary TRRS Inline Mic Hook Switch">MIC BTN</button>
+              </div>
+            </div>
+          </div>
+          <div class="codec-bottom-row">
+            <div class="voltmeter-badge">
+              <span class="voltmeter-val" id="codec-adc-gain">+0.0 dB</span>
+              <span class="voltmeter-sub">ADC L/R</span>
+            </div>
+            <div class="voltmeter-badge">
+              <span class="voltmeter-val" id="codec-dac-vol">0.0 dB</span>
+              <span class="voltmeter-sub">DAC L/R</span>
+            </div>
+            <button class="codec-btn" id="codec-btn-feed-tone" title="Stream or Inject 440 Hz Test Sine Tone to ADC">TEST TONE</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 5: JTAG / SWD Debug Console -->
+    <div class="swd-terminal-card" id="card-swd">
+      <div class="swd-header">
+        <div class="swd-title-wrap">
+          <span class="swd-title">⚡ JTAG / SWD Debug Console</span>
+          <span class="swd-status-pill" id="swd-status-pill">TARGET: RUNNING</span>
+        </div>
+      </div>
+      <div class="swd-quick-bar">
+        <button class="swd-quick-btn" data-cmd="help">help</button>
+        <button class="swd-quick-btn" data-cmd="status">status</button>
+        <button class="swd-quick-btn" data-cmd="regs">regs</button>
+        <button class="swd-quick-btn" data-cmd="halt">halt</button>
+        <button class="swd-quick-btn" data-cmd="resume">resume</button>
+        <button class="swd-quick-btn" data-cmd="step">step</button>
+        <button class="swd-quick-btn" data-cmd="sym">sym</button>
+        <button class="swd-quick-btn" data-cmd="nvic">nvic</button>
+        <button class="swd-quick-btn" data-cmd="clear">clear</button>
+      </div>
+      <div class="swd-output-view" id="swd-output"></div>
+      <div class="swd-input-wrap">
+        <span class="swd-prompt-prefix">swd&gt;</span>
+        <input type="text" class="swd-input-field" id="swd-input" autocomplete="off" spellcheck="false" placeholder="Type command (e.g. regs, halt, resume, mdw 0x20000000 4)..." />
+        <button class="swd-send-btn" id="swd-send-btn">Send</button>
+      </div>
+    </div>
+  </div> <!-- closes .right-panel -->
+
+</div> <!-- closes .synth-workspace -->
+
+<script>
+  // State tracking
+  let kbdSenseMode = 0; // 0 = Pressure, 1 = Velocity
+  let isRibbonDown = false;
+  let activeKeys = new Set();
+
+  // WebSocket High-Performance Streaming
+  let ws = null;
+  let wsConnected = false;
+
+  function wsSend(msg) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(msg));
+      return true;
+    }
+    return false;
+  }
+
+  function sendCmd(cmdObj) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(cmdObj));
+    }
+  }
+
+  // Coalesced Dispatcher for High-Frequency Analog Controls (Potentiometers & Touchstrip)
+  const pendingPotUpdates = new Map();
+  let pendingTouchstrip = null;
+  let rafScheduled = false;
+
+  function flushPendingAnalogCommands() {
+    rafScheduled = false;
+    for (const [channel, value] of pendingPotUpdates) {
+      sendCmd({ cmd: "potentiometer", channel, value });
+    }
+    pendingPotUpdates.clear();
+
+    if (pendingTouchstrip !== null) {
+      sendCmd(pendingTouchstrip);
+      pendingTouchstrip = null;
+    }
+  }
+
+  function schedulePotentiometerCmd(channel, value) {
+    pendingPotUpdates.set(channel, value);
+    if (!rafScheduled) {
+      rafScheduled = true;
+      requestAnimationFrame(flushPendingAnalogCommands);
+    }
+  }
+
+  function scheduleTouchstripCmd(value, touched) {
+    if (!touched) {
+      pendingTouchstrip = null;
+      sendCmd({ cmd: "touchstrip", value, touched: false });
+      return;
+    }
+    pendingTouchstrip = { cmd: "touchstrip", value, touched: true };
+    if (!rafScheduled) {
+      rafScheduled = true;
+      requestAnimationFrame(flushPendingAnalogCommands);
+    }
+  }
+
+  function connectWebSocket() {
+    if (!window.WebSocket) return;
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${location.host}/ws`;
+    try {
+      ws = new WebSocket(wsUrl);
+      ws.binaryType = "arraybuffer";
+
+      ws.onopen = () => {
+        wsConnected = true;
+        const statusEl = document.getElementById("status-badge");
+        if (statusEl) statusEl.textContent = "CONNECTED (WS 60 FPS)";
+      };
+
+      ws.onmessage = (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          const bytes = new Uint8Array(event.data);
+          if (bytes.length === 0) return;
+          const subType = bytes[0];
+          const payload = bytes.subarray(1);
+
+          if (subType === 0x01 && payload.length === 1024) {
+            renderOledBuffer(payload);
+          } else if (subType === 0x03) {
+            try {
+              const text = new TextDecoder().decode(payload);
+              const data = JSON.parse(text);
+              updateFrontPanelState(data);
+            } catch (e) {}
+          } else if (subType === 0x04) {
+            try {
+              const text = new TextDecoder().decode(payload);
+              if (window.appendSwdOutput) {
+                window.appendSwdOutput(text);
+              }
+            } catch (e) {}
+          }
+        }
+      };
+
+      ws.onclose = () => {
+        wsConnected = false;
+        const statusEl = document.getElementById("status-badge");
+        if (statusEl) statusEl.textContent = "DISCONNECTED";
+        setTimeout(connectWebSocket, 1000);
+      };
+
+      ws.onerror = () => {
+        wsConnected = false;
+      };
+    } catch (e) {
+      wsConnected = false;
+    }
+  }
+
+  connectWebSocket();
+
+  const SOURCES = ["CycEnv", "Env", "LFO", "Press", "Key / Arp"];
+  const DESTINATIONS = ["Pitch", "Wave", "Timbre", "Cutoff", "Assign 1", "Assign 2", "Assign 3"];
+
+  // 1. Build Modulation Matrix UI
+  const matrixContainer = document.getElementById("matrix-container");
+  for (let r = 0; r < 5; r++) {
+    const rowDiv = document.createElement("div");
+    rowDiv.className = "matrix-row";
+
+    const label = document.createElement("div");
+    label.className = "matrix-row-label";
+    label.textContent = SOURCES[r];
+    rowDiv.appendChild(label);
+
+    for (let c = 0; c < 7; c++) {
+      const led = document.createElement("div");
+      led.className = "matrix-led";
+      led.dataset.row = r;
+      led.dataset.col = c;
+      led.id = `led-${r}-${c}`;
+      rowDiv.appendChild(led);
+    }
+    matrixContainer.appendChild(rowDiv);
+  }
+
+  // 2. Build 25 Capacitive Touch Keys
+  // 15 White Keys: C2, D2, E2, F2, G2, A2, B2, C3, D3, E3, F3, G3, A3, B3, C4
+  // 10 Black Keys: C#2, D#2, F#2, G#2, A#2, C#3, D#3, F#3, G#3, A#3
+  const keybed = document.getElementById("keybed-container");
+  const WHITE_INDICES = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23, 24];
+  const BLACK_KEYS = [
+    { idx: 1, note: "C#2", left: "4.4%" },
+    { idx: 3, note: "D#2", left: "11.1%" },
+    { idx: 6, note: "F#2", left: "24.4%" },
+    { idx: 8, note: "G#2", left: "31.1%" },
+    { idx: 10, note: "A#2", left: "37.8%" },
+    { idx: 13, note: "C#3", left: "51.1%" },
+    { idx: 15, note: "D#3", left: "57.8%" },
+    { idx: 18, note: "F#3", left: "71.1%" },
+    { idx: 20, note: "G#3", left: "77.8%" },
+    { idx: 22, note: "A#3", left: "84.4%" },
+  ];
+  const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+  for (let i = 0; i < 15; i++) {
+    const keyIdx = WHITE_INDICES[i];
+    const octave = 2 + Math.floor(keyIdx / 12);
+    const noteName = NOTE_NAMES[keyIdx % 12] + octave;
+
+    const keyDiv = document.createElement("div");
+    keyDiv.className = "white-key";
+    keyDiv.dataset.key = keyIdx;
+    keyDiv.id = `key-${keyIdx}`;
+    keyDiv.innerHTML = `<div class="pcb-copper-dots"></div><span class="key-label"></span>`;
+
+    bindKeyTouchEvents(keyDiv, keyIdx);
+    keybed.appendChild(keyDiv);
+  }
+
+  BLACK_KEYS.forEach(bk => {
+    const keyDiv = document.createElement("div");
+    keyDiv.className = "black-key";
+    keyDiv.dataset.key = bk.idx;
+    keyDiv.id = `key-${bk.idx}`;
+    keyDiv.style.left = bk.left;
+    keyDiv.innerHTML = `<div class="pcb-copper-dots"></div><span class="key-label"></span>`;
+
+    bindKeyTouchEvents(keyDiv, bk.idx);
+    keybed.appendChild(keyDiv);
+  });
+
+  const keyPressures = new Map();
+  const latchedKeys = new Set();
+
+  function bindKeyTouchEvents(el, keyIdx) {
+    el.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      if (latchedKeys.has(keyIdx)) {
+        latchedKeys.delete(keyIdx);
+        el.classList.remove("latched");
+        endNote(keyIdx);
+      } else {
+        latchedKeys.add(keyIdx);
+        el.classList.add("latched");
+        startNote(keyIdx, 100);
+      }
+    });
+
+    el.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      if (latchedKeys.has(keyIdx)) {
+        latchedKeys.delete(keyIdx);
+        el.classList.remove("latched");
+        endNote(keyIdx);
+        return;
+      }
+      try { el.setPointerCapture(e.pointerId); } catch (_) {}
+      const rect = el.getBoundingClientRect();
+      const relY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+      // Pressure is based on skin contact surface area (bottom/hard press = max)
+      const press = kbdSenseMode === 0 ? Math.floor(80 + relY * 175) : 100;
+      keyPressures.set(keyIdx, press);
+      startNote(keyIdx, press);
+    });
+
+    el.addEventListener("pointermove", (e) => {
+      if (activeKeys.has(keyIdx) && kbdSenseMode === 0) {
+        const rect = el.getBoundingClientRect();
+        const relY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+        const press = Math.floor(80 + relY * 175);
+        const lastPress = keyPressures.get(keyIdx) || 0;
+        if (Math.abs(press - lastPress) >= 2) {
+          keyPressures.set(keyIdx, press);
+          updateKeyPressure(keyIdx, press);
+        }
+      }
+    });
+
+    const releaseKey = (e) => {
+      if (latchedKeys.has(keyIdx)) return;
+      try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+      keyPressures.delete(keyIdx);
+      endNote(keyIdx);
+    };
+
+    el.addEventListener("pointerup", releaseKey);
+    el.addEventListener("pointercancel", releaseKey);
+  }
+
+  function startNote(keyIdx, pressure) {
+    activeKeys.add(keyIdx);
+    const keyEl = document.getElementById(`key-${keyIdx}`);
+    if (keyEl) keyEl.classList.add("active");
+    sendCmd({ cmd: "key", key: keyIdx, pressure: pressure, velocity: pressure });
+  }
+
+  function updateKeyPressure(keyIdx, pressure) {
+    sendCmd({ cmd: "key", key: keyIdx, pressure: pressure });
+  }
+
+  function endNote(keyIdx) {
+    if (latchedKeys.has(keyIdx)) {
+      latchedKeys.delete(keyIdx);
+      const keyEl = document.getElementById(`key-${keyIdx}`);
+      if (keyEl) keyEl.classList.remove("latched");
+    }
+    if (activeKeys.has(keyIdx)) {
+      activeKeys.delete(keyIdx);
+      const keyEl = document.getElementById(`key-${keyIdx}`);
+      if (keyEl) keyEl.classList.remove("active");
+      sendCmd({ cmd: "key", key: keyIdx, pressure: 0 });
+    }
+  }
+
+  // 3. Touch Ribbon Slider Interaction (Bend, Spice, Dice)
+  const ribbon = document.getElementById("touch-ribbon");
+  const ribbonCursor = document.getElementById("ribbon-cursor");
+
+  function handleRibbonEvent(e, isTouchEnd = false) {
+    if (!ribbon) return;
+    const rect = ribbon.getBoundingClientRect();
+    const clientX = e.clientX;
+    const norm = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const val_12b = Math.floor(norm * 4095);
+
+    if (isTouchEnd) {
+      ribbonCursor.style.display = "none";
+      scheduleTouchstripCmd(val_12b, false);
+      return;
+    }
+
+    ribbonCursor.style.display = "block";
+    ribbonCursor.style.left = `${norm * 100}%`;
+
+    scheduleTouchstripCmd(val_12b, true);
+  }
+
+  if (ribbon) {
+    ribbon.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      isRibbonDown = true;
+      try { ribbon.setPointerCapture(e.pointerId); } catch (_) {}
+      handleRibbonEvent(e);
+    });
+    ribbon.addEventListener("pointermove", (e) => {
+      if (isRibbonDown) handleRibbonEvent(e);
+    });
+    const releaseRibbon = (e) => {
+      if (isRibbonDown) {
+        isRibbonDown = false;
+        try { ribbon.releasePointerCapture(e.pointerId); } catch (_) {}
+        handleRibbonEvent(e, true);
+      }
+    };
+    ribbon.addEventListener("pointerup", releaseRibbon);
+    ribbon.addEventListener("pointercancel", releaseRibbon);
+  }
+
+  // 4. 8 Capacitive Icon Strip Microswitches
+  function setupMomentaryMicroswitch(elementOrId, switchName) {
+    const btn = typeof elementOrId === "string" ? document.getElementById(elementOrId) : elementOrId;
+    if (!btn) return;
+    let isDown = false;
+    btn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      isDown = true;
+      sendCmd({ cmd: "microswitch", name: switchName, action: "down" });
+      btn.classList.add("pressed");
+      try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    const release = (e) => {
+      if (isDown) {
+        isDown = false;
+        sendCmd({ cmd: "microswitch", name: switchName, action: "up" });
+        btn.classList.remove("pressed");
+        try { btn.releasePointerCapture(e.pointerId); } catch (err) {}
+      }
+    };
+    btn.addEventListener("pointerup", release);
+    btn.addEventListener("pointerleave", release);
+    btn.addEventListener("pointercancel", release);
+  }
+
+  // 4. Capacitive Icon Strip Microswitches
+  setupMomentaryMicroswitch("icon-hold", "hold");
+  setupMomentaryMicroswitch("icon-up", "up");
+  setupMomentaryMicroswitch("icon-order", "order");
+  setupMomentaryMicroswitch("icon-random", "random");
+  setupMomentaryMicroswitch("icon-pattern", "pattern");
+  setupMomentaryMicroswitch("icon-spice", "spice");
+  setupMomentaryMicroswitch("icon-dice", "dice");
+  setupMomentaryMicroswitch("icon-bend", "bend");
+
+  // 6. Octave Microswitches with built-in LEDs
+  setupMomentaryMicroswitch("oct-down-btn", "oct_down");
+  setupMomentaryMicroswitch("oct-up-btn", "oct_up");
+
+  // 7. Filter, Cycle, LFO, Seq, & Matrix Microswitches
+  setupMomentaryMicroswitch("filter-type-btn", "filter_type");
+  setupMomentaryMicroswitch("cyc-mode-btn", "cyc_mode");
+  setupMomentaryMicroswitch("lfo-shape-btn", "lfo_shape");
+  setupMomentaryMicroswitch("oct-mod-btn", "oct_mod");
+  setupMomentaryMicroswitch("arp-seq-btn", "arp_seq");
+  setupMomentaryMicroswitch("panel-btn", "panel");
+  setupMomentaryMicroswitch("paraphonic-btn", "paraphonic");
+  setupMomentaryMicroswitch("amp-mod-btn", "amp_mod");
+  setupMomentaryMicroswitch("utility-btn", "utility");
+  setupMomentaryMicroswitch("save-btn", "save");
+
+  setupMomentaryMicroswitch("btn-assign-1", "assign_1");
+  setupMomentaryMicroswitch("btn-assign-2", "assign_2");
+  setupMomentaryMicroswitch("btn-assign-3", "assign_3");
+
+  // 8. Shift Microswitch (Supports keyboard Shift modifier and on-screen click-to-latch)
+  const shiftBtn = document.getElementById("shift-btn");
+  let isShiftLatched = false;
+  let isShiftKeyDown = false;
+
+  function setShiftContactState(active) {
+    sendCmd({ cmd: "microswitch", name: "shift", action: active ? "down" : "up" });
+    if (shiftBtn) {
+      if (active) shiftBtn.classList.add("pressed");
+      else shiftBtn.classList.remove("pressed");
+    }
+  }
+
+  if (shiftBtn) {
+    shiftBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      isShiftLatched = !isShiftLatched;
+      setShiftContactState(isShiftLatched || isShiftKeyDown);
+    });
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Shift" && !e.repeat) {
+      isShiftKeyDown = true;
+      setShiftContactState(true);
+    }
+  });
+  window.addEventListener("keyup", (e) => {
+    if (e.key === "Shift") {
+      isShiftKeyDown = false;
+      setShiftContactState(isShiftLatched);
+    }
+  });
+
+  // 9. Potentiometer & Encoder Drag / Wheel Interaction
+  const encoderAngles = new Map();
+  const potValues = new Map();
+  const knobDragging = new Set();
+
+  const ENCODERS_WITH_MICROSWITCH = new Set(["matrix", "preset", "rate", "lfo_rate"]);
+
+  function stepEncoder(knob, delta) {
+    const encName = knob.dataset.encoder;
+    let ang = (encoderAngles.get(knob) || 0) + delta * 15;
+    encoderAngles.set(knob, ang);
+    const ind = knob.querySelector(".knob-indicator");
+    if (ind) ind.style.transform = `translateX(-50%) rotate(${ang}deg)`;
+
+    if (encName) {
+      if (ENCODERS_WITH_MICROSWITCH.has(encName)) {
+        sendCmd({ cmd: "encoder_with_microswitch", name: encName, delta: delta });
+      } else {
+        sendCmd({ cmd: "encoder", name: encName, delta: delta });
+      }
+    }
+  }
+
+  document.querySelectorAll(".knob-cap").forEach(knob => {
+    let isDragging = false;
+    let dragStartY = 0;
+    let lastEncoderY = 0;
+    let startVal = 2048;
+    let accumDy = 0;
+    let totalMove = 0;
+    const isEncoder = knob.classList.contains("is-encoder") || knob.dataset.encoder !== undefined;
+    const encMicroswitch = knob.dataset.microswitch;
+    const potChannel = knob.dataset.potentiometer;
+    let isMicroswitchPressed = false;
+
+    // Wheel support (works on all encoders & potentiometers)
+    knob.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const dir = e.deltaY < 0 ? 1 : -1;
+      if (isEncoder) {
+        stepEncoder(knob, dir);
+      } else if (potChannel !== undefined) {
+        const curVal = potValues.get(knob) ?? 2048;
+        const newVal = Math.max(0, Math.min(4095, curVal + dir * 64));
+        potValues.set(knob, newVal);
+        updateKnobVisual(knob, newVal);
+        schedulePotentiometerCmd(parseInt(potChannel), newVal);
+      }
+    }, { passive: false });
+
+    // Pointer down (touch, mouse, stylus)
+    knob.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      isDragging = true;
+      knobDragging.add(knob);
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      lastEncoderY = e.clientY;
+      accumDy = 0;
+      hasStepped = false;
+      maxMove = 0;
+      startVal = potValues.get(knob) ?? 2048;
+
+      if (encMicroswitch && e.button === 1) {
+        isMicroswitchPressed = true;
+        sendCmd({ cmd: "encoder_with_microswitch", name: encMicroswitch, action: "down" });
+        knob.classList.add("pressed");
+      }
+
+      try { knob.setPointerCapture(e.pointerId); } catch (_) {}
+
+      const onPointerMove = (ev) => {
+        if (!isDragging) return;
+        const dist = Math.hypot(ev.clientX - dragStartX, ev.clientY - dragStartY);
+        if (dist > maxMove) maxMove = dist;
+
+        if (isEncoder) {
+          const dy = lastEncoderY - ev.clientY;
+          lastEncoderY = ev.clientY;
+          accumDy += dy;
+          if (Math.abs(accumDy) >= 8) {
+            hasStepped = true;
+            const steps = Math.trunc(accumDy / 8);
+            accumDy -= steps * 8;
+            stepEncoder(knob, steps);
+          }
+        } else if (potChannel !== undefined) {
+          const dy = dragStartY - ev.clientY;
+          const newVal = Math.max(0, Math.min(4095, startVal + Math.round(dy * 15)));
+          potValues.set(knob, newVal);
+          updateKnobVisual(knob, newVal);
+          schedulePotentiometerCmd(parseInt(potChannel), newVal);
+        }
+      };
+
+      const releaseKnob = (ev) => {
+        if (!isDragging) return;
+        isDragging = false;
+        knobDragging.delete(knob);
+        flushPendingAnalogCommands();
+        try { knob.releasePointerCapture(ev.pointerId); } catch (_) {}
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", releaseKnob);
+        window.removeEventListener("pointercancel", releaseKnob);
+
+        if (isMicroswitchPressed) {
+          isMicroswitchPressed = false;
+          sendCmd({ cmd: "encoder_with_microswitch", name: encMicroswitch, action: "up" });
+          knob.classList.remove("pressed");
+        } else if (encMicroswitch && !hasStepped && maxMove < 10) {
+          // Momentary click when tapping/clicking the knob cap without dragging
+          sendCmd({ cmd: "encoder_with_microswitch", name: encMicroswitch, action: "down" });
+          knob.classList.add("pressed");
+          setTimeout(() => {
+            sendCmd({ cmd: "encoder_with_microswitch", name: encMicroswitch, action: "up" });
+            knob.classList.remove("pressed");
+          }, 120);
+        }
+      };
+
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", releaseKnob);
+      window.addEventListener("pointercancel", releaseKnob);
+    });
+  });
+
+  function updateKnobVisual(knobEl, val_12b) {
+    const angle = ((val_12b / 4095.0) * 270) - 135;
+    const ind = knobEl.querySelector(".knob-indicator");
+    if (ind) ind.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+  }
+
+  // 10. Live 128x64 OLED Canvas Framebuffer & State Synchronization
+  const oledCanvas = document.getElementById("oled-canvas");
+  const oledCtx = oledCanvas ? oledCanvas.getContext("2d") : null;
+  const oledImgData = oledCtx ? oledCtx.createImageData(128, 64) : null;
+
+  function renderOledBuffer(buf) {
+    if (!oledCtx || !oledImgData) return;
+    for (let page = 0; page < 8; page++) {
+      for (let x = 0; x < 128; x++) {
+        const byteVal = buf[page * 128 + x];
+        for (let bit = 0; bit < 8; bit++) {
+          const y = page * 8 + bit;
+          const isPixelOn = (byteVal & (1 << bit)) !== 0;
+          const idx = (y * 128 + x) * 4;
+          oledImgData.data[idx + 0] = isPixelOn ? 0 : 5;
+          oledImgData.data[idx + 1] = isPixelOn ? 240 : 10;
+          oledImgData.data[idx + 2] = isPixelOn ? 255 : 15;
+          oledImgData.data[idx + 3] = 255;
+        }
+      }
+    }
+    oledCtx.putImageData(oledImgData, 0, 0);
+  }
+
+  function updateLed(el, brightness) {
+    if (!el) return;
+    const b = Number(brightness) || 0;
+    el.classList.toggle("lit", b > 0);
+    el.style.setProperty("--led-bright", (b / 255.0).toFixed(3));
+  }
+
+  function updateFrontPanelState(data) {
+    if (!data) return;
+
+    // Update Matrix LEDs directly from live coprocessor SRAM
+    if (data.matrix_leds) {
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 7; c++) {
+          updateLed(document.getElementById(`led-${r}-${c}`), data.matrix_leds[r * 7 + c]);
+        }
+      }
+    }
+
+    // Translucent illuminated button LED renders
+    function updateTranslucentButton(id, r, g, b, brightness) {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      const bright = Math.max(0, Math.min(255, Number(brightness) || 0));
+      if (bright === 0) {
+        btn.style.backgroundColor = "";
+        btn.style.boxShadow = "";
+        btn.style.borderColor = "";
+        btn.style.color = "";
+      } else {
+        const norm = bright / 255.0;
+        btn.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${(0.25 + 0.65 * norm).toFixed(3)})`;
+        btn.style.boxShadow = `0 0 ${(14 * norm).toFixed(1)}px rgba(${r}, ${g}, ${b}, ${(0.85 * norm).toFixed(3)})`;
+        btn.style.borderColor = `rgba(${r}, ${g}, ${b}, ${(0.5 + 0.5 * norm).toFixed(3)})`;
+        if (norm > 0.35 && r > 200 && g > 200 && b > 200) {
+          btn.style.color = "#0e1118";
+        }
+      }
+    }
+
+    // Hardware Panel LEDs (35 bytes: 5 rows x 7 cols) driven directly from physical Matrix Coprocessor
+    if (data.panel_leds && data.panel_leds.length >= 21) {
+      // Row 5: LFO Waveform LEDs (cols 0..5) + LFO Sync (col 6)
+      for (let s = 0; s < 6; s++) {
+        const b = data.panel_leds[0 + s];
+        const row = document.getElementById(`lfo-row-${s}`);
+        if (row) row.classList.toggle("active", b > 0);
+        updateLed(document.getElementById(`led-lfo-${s}`), b);
+      }
+      updateLed(document.getElementById("led-lfo-sync"), data.panel_leds[6]);
+
+      // Row 6: Filter mode LEDs (cols 0..2) [LPF, BPF, HPF] + Cycling Env LEDs (cols 4..6) [Env, Run, Loop]
+      updateLed(document.getElementById("led-lpf"), data.panel_leds[7]);
+      updateLed(document.getElementById("led-bpf"), data.panel_leds[8]);
+      updateLed(document.getElementById("led-hpf"), data.panel_leds[9]);
+
+      updateLed(document.getElementById("led-cyc-env"), data.panel_leds[11]);
+      updateLed(document.getElementById("led-cyc-run"), data.panel_leds[12]);
+      updateLed(document.getElementById("led-cyc-loop"), data.panel_leds[13]);
+
+      // Row 7: Arp / Seq track LEDs (cols 0..3) (1..4) + Arp Sync LED (col 4)
+      for (let i = 1; i <= 4; i++) {
+        updateLed(document.getElementById(`led-seq-${i}`), data.panel_leds[14 + (i - 1)]);
+      }
+      updateLed(document.getElementById("led-arp-sync"), data.panel_leds[18]);
+
+      // Row 8: Assign 1, 2, 3 LEDs (cols 0..2) + Octave LEDs [Down, Up] (cols 3..4)
+      for (let i = 0; i < 3; i++) {
+        updateLed(document.getElementById(`led-assign-${i + 1}`), data.panel_leds[21 + i]);
+      }
+      updateTranslucentButton("oct-down-btn", 240, 245, 255, data.panel_leds[24]);
+      updateTranslucentButton("oct-up-btn", 240, 245, 255, data.panel_leds[25]);
+
+      // Row 9: Buttons with LEDs (Paraphonic, Panel, Utility, Save, Amp Mod, Arp / Seq)
+      if (data.panel_leds.length >= 35) {
+        updateTranslucentButton("paraphonic-btn", 240, 245, 255, data.panel_leds[28]);
+        updateTranslucentButton("panel-btn", 240, 245, 255, data.panel_leds[29]);
+        updateTranslucentButton("utility-btn", 240, 245, 255, data.panel_leds[30]);
+        updateTranslucentButton("save-btn", 240, 245, 255, data.panel_leds[31]);
+        updateTranslucentButton("amp-mod-btn", 240, 245, 255, data.panel_leds[32]);
+
+        const w = data.panel_leds[33];
+        const b = data.panel_leds[34];
+        const arpBtn = document.getElementById("arp-seq-btn");
+        if (arpBtn) {
+          if (w === 0 && b === 0) {
+            arpBtn.style.backgroundColor = "";
+            arpBtn.style.boxShadow = "";
+            arpBtn.style.borderColor = "";
+          } else if (w > 0 && b === 0) {
+            updateTranslucentButton("arp-seq-btn", 240, 245, 255, w);
+          } else if (b > 0 && w === 0) {
+            updateTranslucentButton("arp-seq-btn", 60, 150, 255, b);
+          } else {
+            const maxBright = Math.max(w, b);
+            const norm = maxBright / 255.0;
+            arpBtn.style.backgroundColor = `rgba(${Math.min(255, w + 30)}, ${Math.min(255, w + 75)}, 255, ${(0.3 + 0.6 * norm).toFixed(3)})`;
+            arpBtn.style.boxShadow = `0 0 ${(12 * norm).toFixed(1)}px rgba(100, 180, 255, ${(0.8 * norm).toFixed(3)})`;
+            arpBtn.style.borderColor = `rgba(140, 200, 255, ${(0.6 * norm).toFixed(3)})`;
+          }
+        }
+      }
+    }
+
+    if (data.icon_leds) {
+      updateLed(document.getElementById("led-icon-hold"), data.icon_leds[0]);
+      updateLed(document.getElementById("led-icon-up"), data.icon_leds[1]);
+      updateLed(document.getElementById("led-icon-order"), data.icon_leds[2]);
+      updateLed(document.getElementById("led-icon-random"), data.icon_leds[3]);
+      updateLed(document.getElementById("led-icon-pattern"), data.icon_leds[4]);
+      updateLed(document.getElementById("led-icon-spice"), data.icon_leds[5]);
+      updateLed(document.getElementById("led-icon-dice"), data.icon_leds[6]);
+      updateLed(document.getElementById("led-icon-bend"), data.icon_leds[7]);
+    }
+
+    // Rear Panel State (CV, Gate, Pressure, Clock I/O)
+    if (data.rear_panel) {
+      updateRearPanelState(data.rear_panel);
+    }
+  }
+
+  // 11. Real-Time 4-Channel CV Monitor (Oscilloscope)
+  const cvScopeCanvas = document.getElementById("cv-oscilloscope");
+  const cvScopeCtx = cvScopeCanvas ? cvScopeCanvas.getContext("2d") : null;
+  const SCOPE_BUF_SIZE = 170; // 340px / 2px = 170 samples (~2.8s at 60 FPS)
+  const scopePitch = new Float32Array(SCOPE_BUF_SIZE);
+  const scopeGate = new Float32Array(SCOPE_BUF_SIZE);
+  const scopePress = new Float32Array(SCOPE_BUF_SIZE);
+  const scopeClock = new Float32Array(SCOPE_BUF_SIZE);
+  let scopeHead = 0;
+  let scopeCount = 0;
+
+  function pushScopeSample(pitch, gate, press, clock) {
+    scopePitch[scopeHead] = pitch;
+    scopeGate[scopeHead] = gate;
+    scopePress[scopeHead] = press;
+    scopeClock[scopeHead] = clock;
+    scopeHead = (scopeHead + 1) % SCOPE_BUF_SIZE;
+    if (scopeCount < SCOPE_BUF_SIZE) scopeCount++;
+  }
+
+  function drawScope() {
+    if (!cvScopeCtx || !cvScopeCanvas) return;
+    if (cvScopeCanvas.clientWidth && cvScopeCanvas.width !== cvScopeCanvas.clientWidth) {
+      cvScopeCanvas.width = cvScopeCanvas.clientWidth;
+    }
+    const w = cvScopeCanvas.width;
+    const h = cvScopeCanvas.height;
+
+    // Clear background
+    cvScopeCtx.fillStyle = "#0c0e14";
+    cvScopeCtx.fillRect(0, 0, w, h);
+
+    // Subtle grid lines (0V baseline at y = h - 6, 2.5V at y = h/2, 5V at y = 6)
+    cvScopeCtx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    cvScopeCtx.lineWidth = 1;
+    cvScopeCtx.beginPath();
+    cvScopeCtx.moveTo(0, h - 5.5);
+    cvScopeCtx.lineTo(w, h - 5.5);
+    cvScopeCtx.moveTo(0, Math.round(h * 0.5) + 0.5);
+    cvScopeCtx.lineTo(w, Math.round(h * 0.5) + 0.5);
+    cvScopeCtx.moveTo(0, 5.5);
+    cvScopeCtx.lineTo(w, 5.5);
+    cvScopeCtx.stroke();
+
+    if (scopeCount >= 2) {
+      const bottomY = h - 6;
+      const topY = 6;
+      const ySpan = bottomY - topY;
+
+      function renderChannel(buffer, strokeColor, maxVolts) {
+        cvScopeCtx.strokeStyle = strokeColor;
+        cvScopeCtx.lineWidth = 1.5;
+        cvScopeCtx.beginPath();
+
+        const stepX = w / (SCOPE_BUF_SIZE - 1);
+        const startIdx = scopeCount < SCOPE_BUF_SIZE ? 0 : scopeHead;
+
+        for (let i = 0; i < scopeCount; i++) {
+          const bufIdx = (startIdx + i) % SCOPE_BUF_SIZE;
+          const val = buffer[bufIdx];
+          const norm = Math.max(0.0, Math.min(1.0, val / maxVolts));
+          const x = i * stepX;
+          const y = bottomY - norm * ySpan;
+          if (i === 0) {
+            cvScopeCtx.moveTo(x, y);
+          } else {
+            cvScopeCtx.lineTo(x, y);
+          }
+        }
+        cvScopeCtx.stroke();
+      }
+
+      // Channel 1: Pitch CV (Amber #f59e0b, 0..5V)
+      renderChannel(scopePitch, "#f59e0b", 5.0);
+      // Channel 2: Gate (Cyan #06b6d4, 0..5V)
+      renderChannel(scopeGate, "#06b6d4", 5.0);
+      // Channel 3: Pressure (Magenta #ec4899, 0..5V)
+      renderChannel(scopePress, "#ec4899", 5.0);
+      // Channel 4: Clock (Lime #84cc16, 0..5V)
+      renderChannel(scopeClock, "#84cc16", 5.0);
+    }
+
+    requestAnimationFrame(drawScope);
+  }
+
+  requestAnimationFrame(drawScope);
+
+  // Rear Panel Voltmeter & Jack LED Elements
+  const cvPitchVolts = document.getElementById("cv-pitch-volts");
+  const cvPitchNote = document.getElementById("cv-pitch-note");
+  const ledCvPitch = document.getElementById("led-cv-pitch");
+
+  const cvGateVolts = document.getElementById("cv-gate-volts");
+  const cvGateMode = document.getElementById("cv-gate-mode");
+  const ledCvGate = document.getElementById("led-cv-gate");
+
+  const cvPressVolts = document.getElementById("cv-press-volts");
+  const cvPressPct = document.getElementById("cv-press-pct");
+  const ledCvPressure = document.getElementById("led-cv-pressure");
+
+  const cvClkoutVolts = document.getElementById("cv-clkout-volts");
+  const cvClkoutState = document.getElementById("cv-clkout-state");
+  const ledCvClkout = document.getElementById("led-cv-clkout");
+
+  const ledCvClkin = document.getElementById("led-cv-clkin");
+
+  // Codec Headset & Audio In Elements
+  const codecJackSelect = document.getElementById("codec-jack-state");
+  const codecInputSourceSelect = document.getElementById("codec-input-source");
+  const codecBtnHook = document.getElementById("codec-btn-hook");
+  const codecBtnFeedTone = document.getElementById("codec-btn-feed-tone");
+  const codecAdcGain = document.getElementById("codec-adc-gain");
+  const codecDacVol = document.getElementById("codec-dac-vol");
+  const ledCodecHeadset = document.getElementById("led-codec-headset");
+
+  const CV_NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+  function updateRearPanelState(rear) {
+    if (!rear) return;
+
+    // 1. Pitch CV (TIM3 PWM DAC, 0..5V standard 1V/Oct)
+    const pitchV = Number(rear.pitch_cv_volts) || 0.0;
+    if (cvPitchVolts) {
+      cvPitchVolts.textContent = `${pitchV >= 0 ? "+" : ""}${pitchV.toFixed(3)} V`;
+    }
+    if (cvPitchNote) {
+      const totalSemis = pitchV * 12.0;
+      const noteIdx = Math.round(totalSemis);
+      const cents = Math.round((totalSemis - noteIdx) * 100);
+      const oct = Math.floor(noteIdx / 12);
+      const nName = CV_NOTE_NAMES[((noteIdx % 12) + 12) % 12];
+      const centSign = cents >= 0 ? "+" : "";
+      cvPitchNote.textContent = `${nName}${oct} ${centSign}${cents}ct`;
+    }
+    if (ledCvPitch) {
+      const pNorm = Math.min(1.0, Math.max(0.0, pitchV / 5.0));
+      ledCvPitch.style.borderColor = pitchV > 0.02 ? `rgba(245, 158, 11, ${(0.3 + 0.7 * pNorm).toFixed(2)})` : "transparent";
+      ledCvPitch.style.boxShadow = pitchV > 0.02 ? `0 0 ${(4 + 8 * pNorm).toFixed(0)}px rgba(245, 158, 11, ${(0.6 * pNorm).toFixed(2)})` : "none";
+    }
+
+    // 2. Gate (PE1, PE13)
+    const gateV = Number(rear.gate_volts) || 0.0;
+    const isGateHigh = rear.gate_raw === true;
+    if (cvGateVolts) {
+      cvGateVolts.textContent = `${gateV.toFixed(2)} V`;
+    }
+    if (cvGateMode) {
+      cvGateMode.textContent = isGateHigh ? (rear.gate_mode_12v ? "Active (+12V)" : "Active (+5V)") : "Off (0V)";
+    }
+    if (ledCvGate) {
+      ledCvGate.style.borderColor = isGateHigh ? (rear.gate_mode_12v ? "#38bdf8" : "#06b6d4") : "transparent";
+      ledCvGate.style.boxShadow = isGateHigh ? "0 0 10px #06b6d4" : "none";
+    }
+
+    // 3. Pressure (DAC1 PA4, 0..5V)
+    const pressV = Number(rear.pressure_volts) || 0.0;
+    const pressRaw = Number(rear.pressure_raw) || 0;
+    if (cvPressVolts) {
+      cvPressVolts.textContent = `${pressV >= 0 ? "+" : ""}${pressV.toFixed(3)} V`;
+    }
+    if (cvPressPct) {
+      cvPressPct.textContent = `${((pressRaw / 4095.0) * 100).toFixed(1)}%`;
+    }
+    if (ledCvPressure) {
+      const prNorm = Math.min(1.0, Math.max(0.0, pressRaw / 4095.0));
+      ledCvPressure.style.borderColor = pressRaw > 20 ? `rgba(236, 72, 153, ${(0.3 + 0.7 * prNorm).toFixed(2)})` : "transparent";
+      ledCvPressure.style.boxShadow = pressRaw > 20 ? `0 0 ${(4 + 8 * prNorm).toFixed(0)}px rgba(236, 72, 153, ${(0.7 * prNorm).toFixed(2)})` : "none";
+    }
+
+    // 4. Clock Out (PE12)
+    const clkOutV = Number(rear.clock_out_volts) || 0.0;
+    const isClkOutHigh = rear.clock_out_raw === true;
+    if (cvClkoutVolts) {
+      cvClkoutVolts.textContent = `${clkOutV.toFixed(2)} V`;
+    }
+    if (cvClkoutState) {
+      cvClkoutState.textContent = isClkOutHigh ? "+5V Pulse" : "0V";
+    }
+    if (ledCvClkout) {
+      ledCvClkout.style.borderColor = isClkOutHigh ? "#84cc16" : "transparent";
+      ledCvClkout.style.boxShadow = isClkOutHigh ? "0 0 10px #84cc16" : "none";
+    }
+
+    // 5. Clock In LED (PE14/15)
+    if (ledCvClkin) {
+      const isClkInHigh = rear.clock_in_raw === true;
+      ledCvClkin.style.borderColor = isClkInHigh ? "#84cc16" : "transparent";
+      ledCvClkin.style.boxShadow = isClkInHigh ? "0 0 10px #84cc16" : "none";
+    }
+
+    // 6. Codec Headset & Audio In (TLV320AIC3104)
+    if (codecJackSelect && document.activeElement !== codecJackSelect && rear.headset_jack) {
+      codecJackSelect.value = rear.headset_jack;
+    }
+    if (codecInputSourceSelect && document.activeElement !== codecInputSourceSelect && rear.audio_input_source) {
+      codecInputSourceSelect.value = rear.audio_input_source;
+    }
+    if (ledCodecHeadset) {
+      if (rear.headset_jack === "headset_with_mic") {
+        ledCodecHeadset.style.borderColor = "#00f0ff";
+        ledCodecHeadset.style.boxShadow = "0 0 10px #00f0ff";
+      } else if (rear.headset_jack === "headphones") {
+        ledCodecHeadset.style.borderColor = "#38bdf8";
+        ledCodecHeadset.style.boxShadow = "0 0 6px #38bdf8";
+      } else {
+        ledCodecHeadset.style.borderColor = "transparent";
+        ledCodecHeadset.style.boxShadow = "none";
+      }
+    }
+    if (codecAdcGain && rear.adc_gain_left_db !== undefined) {
+      const gL = Number(rear.adc_gain_left_db) || 0.0;
+      codecAdcGain.textContent = `${gL >= 0 ? "+" : ""}${gL.toFixed(1)} dB`;
+    }
+    if (codecDacVol && rear.dac_volume_left_db !== undefined) {
+      const vL = Number(rear.dac_volume_left_db) || 0.0;
+      codecDacVol.textContent = `${vL <= -63.0 ? "Mute" : vL.toFixed(1) + " dB"}`;
+    }
+    if (codecBtnHook && !codecBtnHook.matches(":active")) {
+      if (rear.headset_button) {
+        codecBtnHook.classList.add("active");
+      } else {
+        codecBtnHook.classList.remove("active");
+      }
+    }
+
+    // Feed real-time sample into oscilloscope buffer
+    const clkSignal = clkOutV > 0 ? clkOutV : (rear.clock_in_raw ? 5.0 : 0.0);
+    pushScopeSample(pitchV, gateV, pressV, clkSignal);
+  }
+
+  // 12. Clock In & Virtual Master Clock Generator Controller
+  const clkInTapBtn = document.getElementById("clk-in-tap-btn");
+  const clkGenRunBtn = document.getElementById("clk-gen-run-btn");
+  const clkGenBpmInput = document.getElementById("clk-gen-bpm");
+  const clkGenBpmSlider = document.getElementById("clk-gen-bpm-slider");
+  const clkGenPpqSelect = document.getElementById("clk-gen-ppq");
+
+  let clockGenRunning = false;
+  let clockBpm = 120.0;
+  let clockPpq = 24;
+  let clockTimerId = null;
+  let nextClockTickTime = 0;
+
+  if (clkInTapBtn) {
+    clkInTapBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      sendCmd({ cmd: "clock_pulse", duration_ms: 20 });
+    });
+  }
+
+  function clockTick() {
+    if (!clockGenRunning) return;
+    const intervalMs = 60000.0 / (clockBpm * clockPpq);
+    const pulseWidth = Math.min(10, Math.max(2, Math.floor(intervalMs / 2)));
+    sendCmd({ cmd: "clock_pulse", duration_ms: pulseWidth });
+
+    const now = performance.now();
+    if (nextClockTickTime === 0) {
+      nextClockTickTime = now + intervalMs;
+    } else {
+      nextClockTickTime += intervalMs;
+      if (nextClockTickTime < now) {
+        nextClockTickTime = now + intervalMs;
+      }
+    }
+    const delay = Math.max(0, nextClockTickTime - performance.now());
+    clockTimerId = setTimeout(clockTick, delay);
+  }
+
+  function startClockGen() {
+    if (clockGenRunning) return;
+    clockGenRunning = true;
+    nextClockTickTime = performance.now();
+    if (clkGenRunBtn) {
+      clkGenRunBtn.classList.add("running");
+      clkGenRunBtn.textContent = "STOP";
+    }
+    clockTick();
+  }
+
+  function stopClockGen() {
+    clockGenRunning = false;
+    if (clockTimerId !== null) {
+      clearTimeout(clockTimerId);
+      clockTimerId = null;
+    }
+    if (clkGenRunBtn) {
+      clkGenRunBtn.classList.remove("running");
+      clkGenRunBtn.textContent = "RUN";
+    }
+  }
+
+  if (clkGenRunBtn) {
+    clkGenRunBtn.addEventListener("click", () => {
+      if (clockGenRunning) {
+        stopClockGen();
+      } else {
+        startClockGen();
+      }
+    });
+  }
+
+  if (clkGenBpmSlider && clkGenBpmInput) {
+    clkGenBpmSlider.addEventListener("input", () => {
+      clockBpm = Math.max(30.0, Math.min(300.0, parseFloat(clkGenBpmSlider.value) || 120.0));
+      clkGenBpmInput.value = clockBpm.toFixed(1);
+    });
+
+    clkGenBpmInput.addEventListener("change", () => {
+      clockBpm = Math.max(30.0, Math.min(300.0, parseFloat(clkGenBpmInput.value) || 120.0));
+      clkGenBpmSlider.value = clockBpm.toString();
+    });
+  }
+
+  if (clkGenPpqSelect) {
+    clkGenPpqSelect.addEventListener("change", () => {
+      clockPpq = parseInt(clkGenPpqSelect.value, 10) || 24;
+    });
+  }
+
+  // 13. Headset & Audio Input (TLV320AIC3104) Controller
+  if (codecJackSelect) {
+    codecJackSelect.addEventListener("change", (e) => {
+      sendCmd({ cmd: "set_headset_jack", state: e.target.value });
+    });
+  }
+
+  if (codecInputSourceSelect) {
+    codecInputSourceSelect.addEventListener("change", (e) => {
+      sendCmd({ cmd: "set_audio_input_source", source: e.target.value });
+    });
+  }
+
+  if (codecBtnHook) {
+    const pressHook = (e) => {
+      e.preventDefault();
+      codecBtnHook.classList.add("active");
+      sendCmd({ cmd: "set_headset_button", pressed: true });
+    };
+    const releaseHook = (e) => {
+      if (codecBtnHook.classList.contains("active")) {
+        codecBtnHook.classList.remove("active");
+        sendCmd({ cmd: "set_headset_button", pressed: false });
+      }
+    };
+    codecBtnHook.addEventListener("pointerdown", pressHook);
+    codecBtnHook.addEventListener("pointerup", releaseHook);
+    codecBtnHook.addEventListener("pointercancel", releaseHook);
+    codecBtnHook.addEventListener("pointerleave", releaseHook);
+  }
+
+  let audioToneStreaming = false;
+  let audioToneTimerId = null;
+  let audioTonePhase = 0.0;
+
+  function streamToneBatch() {
+    if (!audioToneStreaming) return;
+    const sampleRate = 44100.0;
+    const freq = 440.0;
+    const batchSize = 256;
+    const samples = new Array(batchSize);
+    const phaseInc = (2.0 * Math.PI * freq) / sampleRate;
+    for (let i = 0; i < batchSize; i++) {
+      samples[i] = Math.sin(audioTonePhase) * 0.7;
+      audioTonePhase += phaseInc;
+      if (audioTonePhase >= 2.0 * Math.PI) {
+        audioTonePhase -= 2.0 * Math.PI;
+      }
+    }
+    sendCmd({ cmd: "feed_audio_input", samples: samples });
+    audioToneTimerId = setTimeout(streamToneBatch, 25);
+  }
+
+  if (codecBtnFeedTone) {
+    codecBtnFeedTone.addEventListener("click", () => {
+      audioToneStreaming = !audioToneStreaming;
+      if (audioToneStreaming) {
+        codecBtnFeedTone.classList.add("streaming");
+        codecBtnFeedTone.textContent = "TONE ON";
+        streamToneBatch();
+      } else {
+        codecBtnFeedTone.classList.remove("streaming");
+        codecBtnFeedTone.textContent = "TEST TONE";
+        if (audioToneTimerId !== null) {
+          clearTimeout(audioToneTimerId);
+          audioToneTimerId = null;
+        }
+      }
+    });
+  }
+
+  // 14. Computer Keyboard QWERTY Hotkey Mapping
+  const KEY_MAP = {
+    'z': 0, 's': 1, 'x': 2, 'd': 3, 'c': 4, 'v': 5, 'g': 6, 'b': 7, 'h': 8, 'n': 9, 'j': 10, 'm': 11,
+    'q': 12, '2': 13, 'w': 14, '3': 15, 'e': 16, 'r': 17, '5': 18, 't': 19, '6': 20, 'y': 21, '7': 22, 'u': 23, 'i': 24
+  };
+
+  const CODE_MAP = {
+    'KeyZ': 0, 'KeyS': 1, 'KeyX': 2, 'KeyD': 3, 'KeyC': 4, 'KeyV': 5, 'KeyG': 6, 'KeyB': 7, 'KeyH': 8, 'KeyN': 9, 'KeyJ': 10, 'KeyM': 11,
+    'KeyQ': 12, 'Digit2': 13, 'KeyW': 14, 'Digit3': 15, 'KeyE': 16, 'KeyR': 17, 'Digit5': 18, 'KeyT': 19, 'Digit6': 20, 'KeyY': 21, 'Digit7': 22, 'KeyU': 23, 'KeyI': 24
+  };
+
+  const activePhysicalKeys = new Map();
+
+  window.addEventListener("keydown", (e) => {
+    if (e.repeat) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+
+    let keyIdx = CODE_MAP[e.code];
+    if (keyIdx === undefined) {
+      keyIdx = KEY_MAP[e.key.toLowerCase()];
+    }
+    if (keyIdx !== undefined) {
+      activePhysicalKeys.set(e.code, keyIdx);
+      startNote(keyIdx, 100);
+    }
+  });
+
+  window.addEventListener("keyup", (e) => {
+    let keyIdx = activePhysicalKeys.get(e.code);
+    if (keyIdx !== undefined) {
+      activePhysicalKeys.delete(e.code);
+      endNote(keyIdx);
+    } else {
+      let fallbackIdx = CODE_MAP[e.code] ?? KEY_MAP[e.key.toLowerCase()];
+      if (fallbackIdx !== undefined) {
+        endNote(fallbackIdx);
+      }
+    }
+  });
+
+  // 15. Web MIDI API Auto-Connect
+  if (navigator.requestMIDIAccess) {
+    navigator.requestMIDIAccess().then(midiAccess => {
+      midiAccess.inputs.forEach(input => {
+        input.onmidimessage = (msg) => {
+          const [cmd, note, vel] = msg.data;
+          const status = cmd & 0xf0;
+          if (status === 0x90 && vel > 0) {
+            const keyIdx = note - 48;
+            if (keyIdx >= 0 && keyIdx < 25) startNote(keyIdx, vel * 2);
+          } else if (status === 0x80 || (status === 0x90 && vel === 0)) {
+            const keyIdx = note - 48;
+            if (keyIdx >= 0 && keyIdx < 25) endNote(keyIdx);
+          }
+        };
+      });
+    }).catch(() => {});
+  }
+
+  // 8. Web MIDI API Stream Integration (Guide Section 14)
+  function initWebMidi() {
+    if (!navigator.requestMIDIAccess) {
+      console.log("Web MIDI API not supported in this browser environment.");
+      return;
+    }
+    navigator.requestMIDIAccess({ sysex: false }).then(
+      (midiAccess) => {
+        console.log("Web MIDI API initialized successfully.");
+        function attachInputs() {
+          for (const entry of midiAccess.inputs.values()) {
+            entry.onmidimessage = (event) => {
+              if (wsConnected && ws && ws.readyState === WebSocket.OPEN) {
+                const bytes = Array.from(event.data);
+                ws.send(JSON.stringify({ cmd: "midi", bytes }));
+              }
+            };
+            console.log("Attached MIDI input:", entry.name);
+          }
+        }
+        attachInputs();
+        midiAccess.onstatechange = () => attachInputs();
+      },
+      (err) => {
+        console.warn("Failed to acquire Web MIDI access:", err);
+      }
+    );
+  }
+  // 9. ARM Cortex-M SWD / JTAG Debugger Console Controller
+  (function initSwdTerminal() {
+    const outputEl = document.getElementById("swd-output");
+    const inputEl = document.getElementById("swd-input");
+    const sendBtn = document.getElementById("swd-send-btn");
+    const statusPill = document.getElementById("swd-status-pill");
+    if (!outputEl || !inputEl) return;
+
+    const history = [];
+    let historyIdx = -1;
+
+    window.appendSwdOutput = function(text) {
+      if (!text) return;
+      if (text.includes("\x1b[2J\x1b[H")) {
+        outputEl.textContent = "";
+        text = text.replace(/\x1b\[2J\x1b\[H/g, "");
+      }
+      if (text.length > 0) {
+        outputEl.textContent += text;
+        outputEl.scrollTop = outputEl.scrollHeight;
+      }
+      if (text.includes("HALTED") || text.includes("Target halted") || text.includes("Breakpoint hit")) {
+        statusPill.textContent = "TARGET: HALTED";
+        statusPill.classList.add("halted");
+      } else if (text.includes("RUNNING") || text.includes("Target resumed")) {
+        statusPill.textContent = "TARGET: RUNNING";
+        statusPill.classList.remove("halted");
+      }
+    };
+
+    function sendSwdCommand(cmdStr) {
+      const trimmed = cmdStr.trim();
+      if (!trimmed) {
+        window.appendSwdOutput("\nswd> ");
+        return;
+      }
+      history.push(trimmed);
+      historyIdx = history.length;
+      window.appendSwdOutput(`swd> ${trimmed}\n`);
+      sendCmd({ cmd: "swd", command: trimmed });
+      inputEl.value = "";
+    }
+
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendSwdCommand(inputEl.value);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (history.length > 0) {
+          if (historyIdx > 0) {
+            historyIdx--;
+          } else {
+            historyIdx = 0;
+          }
+          inputEl.value = history[historyIdx];
+        }
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (historyIdx < history.length - 1) {
+          historyIdx++;
+          inputEl.value = history[historyIdx];
+        } else {
+          historyIdx = history.length;
+          inputEl.value = "";
+        }
+      }
+    });
+
+    if (sendBtn) {
+      sendBtn.addEventListener("click", () => sendSwdCommand(inputEl.value));
+    }
+
+    document.querySelectorAll(".swd-quick-btn[data-cmd]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const cmd = btn.dataset.cmd;
+        if (cmd === "clear") {
+          outputEl.textContent = "";
+        } else {
+          sendSwdCommand(cmd);
+        }
+      });
+    });
+
+    // Welcome banner
+    window.appendSwdOutput(
+      "VibeFreak ARM Cortex-M SWD / JTAG Debug Console\n" +
+      "Target: STM32F446xE (Cortex-M4F @ 168MHz) | Port: SWD\n" +
+      "Type 'help' for command catalog, 'regs' for registers.\n\n"
+    );
+  })();
+
+  initWebMidi();
+</script>
+</body>
+</html>

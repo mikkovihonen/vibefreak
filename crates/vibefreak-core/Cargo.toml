@@ -1,0 +1,18 @@
+[package]
+name = "vibefreak-core"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+unicorn-engine = { workspace = true, default-features = false, features = ["arch_arm"] }
+unicorn-engine-sys = { workspace = true, default-features = false, features = ["arch_arm"] }
+thiserror.workspace = true
+log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+crossbeam-channel.workspace = true
+ringbuf.workspace = true
+rayon.workspace = true
+zip.workspace = true
+

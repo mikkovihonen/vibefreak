@@ -1,0 +1,17 @@
+# Rust build output
+/target/
+Cargo.lock
+
+# OS / Editor
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Local disk persistence & recordings
+user_presets.bin
+*.wav
+*.bin
+!crates/**/assets/**/*.bin
+*.mff
