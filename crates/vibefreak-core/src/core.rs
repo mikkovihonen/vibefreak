@@ -3000,11 +3000,12 @@ mod tests {
         if let Ok(env_path) = std::env::var("VIBEFREAK_MFF_PATH") {
             candidate_mffs.push(std::path::PathBuf::from(env_path));
         }
+        if let Ok(env_path) = std::env::var("VIBEFREAK_MFF") {
+            candidate_mffs.push(std::path::PathBuf::from(env_path));
+        }
         candidate_mffs.extend([
             repo_root.join("original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff"),
             repo_root.join("dist/MicroFreak_OpenFirmware_5_0_0_2084.mff"),
-            repo_root.parent().unwrap_or(repo_root).join("open-microfreak/original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff"),
-            repo_root.parent().unwrap_or(repo_root).join("open-microfreak/dist/MicroFreak_OpenFirmware_5_0_0_2084.mff"),
         ]);
 
         for mff_candidate in &candidate_mffs {
@@ -3103,6 +3104,11 @@ mod tests {
         let _ = std::fs::remove_file(&matrix_p);
         let _ = std::fs::remove_file(&kbd_p);
 
+        if !emu.coproc.matrix.is_stock_firmware {
+            eprintln!("Skipping test: real matrix coprocessor firmware not available");
+            return;
+        }
+
         // Press Paraphonic microswitch (contact closed)
         emu.set_microswitch("paraphonic", true);
         emu.flush_coproc_to_usart();
@@ -3170,17 +3176,6 @@ mod tests {
 
     #[test]
     fn test_encoder_with_microswitch_physical_contact_frames() {
-        let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap();
-        let matrix_src = repo_root.join("original_firmware/unpacked/nanowave_iochip_matrix_payload_stm32f0.bin");
-        if !matrix_src.exists() {
-            eprintln!("Skipping test: matrix firmware binary not found");
-            return;
-        }
-
         let mut dummy_bin = vec![0u8; 1024];
         dummy_bin[0..4].copy_from_slice(&0x2001_0000u32.to_le_bytes());
         dummy_bin[4..8].copy_from_slice(&(STOCK_FW_LOAD_ADDR | 1).to_le_bytes());
@@ -3194,6 +3189,11 @@ mod tests {
         let _ = std::fs::remove_file(&oled_p);
         let _ = std::fs::remove_file(&matrix_p);
         let _ = std::fs::remove_file(&kbd_p);
+
+        if !emu.coproc.matrix.is_stock_firmware {
+            eprintln!("Skipping test: real matrix coprocessor firmware not available");
+            return;
+        }
 
         // Preset encoder microswitch: press (contact closed)
         emu.set_microswitch("preset", true);
@@ -3301,17 +3301,6 @@ mod tests {
 
     #[test]
     fn test_potentiometer_coproc_frames() {
-        let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap();
-        let matrix_src = repo_root.join("original_firmware/unpacked/nanowave_iochip_matrix_payload_stm32f0.bin");
-        if !matrix_src.exists() {
-            eprintln!("Skipping test: matrix firmware binary not found");
-            return;
-        }
-
         let mut dummy_bin = vec![0u8; 1024];
         dummy_bin[0..4].copy_from_slice(&0x2001_0000u32.to_le_bytes());
         dummy_bin[4..8].copy_from_slice(&(STOCK_FW_LOAD_ADDR | 1).to_le_bytes());
@@ -3325,6 +3314,11 @@ mod tests {
         let _ = std::fs::remove_file(&oled_p);
         let _ = std::fs::remove_file(&matrix_p);
         let _ = std::fs::remove_file(&kbd_p);
+
+        if !emu.coproc.matrix.is_stock_firmware {
+            eprintln!("Skipping test: real matrix coprocessor firmware not available");
+            return;
+        }
 
         // Glide potentiometer: CID 0x0300, 12-bit value 3500 (0x0DAC)
         emu.set_potentiometer(0x0300, 3500);
@@ -3396,6 +3390,11 @@ mod tests {
         let _ = std::fs::remove_file(&oled_p);
         let _ = std::fs::remove_file(&matrix_p);
         let _ = std::fs::remove_file(&kbd_p);
+
+        if !emu.coproc.keyboard.is_stock_firmware {
+            eprintln!("Skipping test: real keyboard coprocessor firmware not available");
+            return;
+        }
 
         // 1. Key press: Key 5, pressure 80
         emu.set_key(5, 80);
