@@ -15,6 +15,8 @@ Written in Rust, VibeFreak emulates the entire physical hardware architecture:
 - **Discrete Analog Filter**: Continuous Oberheim SEM 2-pole 12 dB/oct multimode filter (LP, BP, HP, Notch)
 - **Debug Interface**: Built-in ARM Cortex-M SWD/JTAG terminal with run control (`halt`, `step`, `resume`, `regs`, `mdw`, `mww`)
 
+> *“Un grain de slop”*
+
 ---
 
 ## Quick Start (Standalone Packaged Firmware Boot)
