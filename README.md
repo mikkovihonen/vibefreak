@@ -51,6 +51,10 @@ Once launched:
 - Open your browser to **http://localhost:8081** to interact with the full front-panel chassis, OLED display, and SWD console.
 - Real-time 48 kHz stereo audio output begins streaming immediately through your system's default audio device.
 
+<div align="center">
+<img src="screenshot.png" width="100%"/>
+</div>
+
 ---
 
 ## CLI Usage
