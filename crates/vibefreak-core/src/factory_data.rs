@@ -1,9 +1,6 @@
-//! Factory stock patches, default wavetable payload, and QSPI NOR flash layout initialization.
+//! Factory stock patches, sample generator, and QSPI NOR flash layout initialization.
 
 use crate::config::*;
-
-pub const FACTORY_WAVETABLES: &[u8] =
-    include_bytes!("../assets/factory_wavetables_qspi.bin");
 
 pub struct FactoryPatchDef {
     pub name: &'static str,
@@ -420,18 +417,11 @@ pub fn generate_factory_qspi_image() -> Vec<u8> {
     // 3. User Wavetable Bank B at 0x00FAF000 is left erased (0xFF) until user uploads custom wavetables.
     // When 0x00FAF000 is clean (0xFF), the firmware correctly routes WaveUser to Bank A at 0x00F5F000.
 
-    // 4. Factory Stock Wavetables at 0x00000000 (256 KB PCM waveform data for Engine 3)
-    if FACTORY_WAVETABLES.len() >= 0x0005_0000 {
-        image[QSPI_STOCK_WAVETABLE_DEST_ADDR..QSPI_STOCK_WAVETABLE_DEST_ADDR + QSPI_STOCK_WAVETABLE_SIZE_BYTES]
-            .copy_from_slice(&FACTORY_WAVETABLES[0x0001_0000..0x0001_0000 + QSPI_STOCK_WAVETABLE_SIZE_BYTES]);
-    }
+    // 4. Factory Stock Wavetables at 0x00000000 (256 KB) & User Wavetables at 0x00F5F000 (320 KB)
+    // Left in erased state (0xFF). When the user supplies an official .mff archive or QSPI flash image,
+    // these regions are dynamically populated by `apply_qspi_data()`.
 
-    // 5. User Wavetables at 0x00F5F000 (320 KB: 64 KB headers + 256 KB user tables for Engine 18)
-    let wt_len = FACTORY_WAVETABLES.len().min(QSPI_WAVETABLE_SIZE_BYTES);
-    image[QSPI_WAVETABLE_DEST_ADDR..QSPI_WAVETABLE_DEST_ADDR + wt_len]
-        .copy_from_slice(&FACTORY_WAVETABLES[..wt_len]);
-
-    // 6. QSPI Status Sector at 0x00FFF000 with 'Q' (0x51)
+    // 5. QSPI Status Sector at 0x00FFF000 with 'Q' (0x51)
     image[QSPI_STATUS_SECTOR_BASE] = 0x51;
 
     image

@@ -18,6 +18,59 @@ pub const PERIPH_BITBAND_SIZE: usize = 32 * 1024 * 1024; // 32 MB Peripheral bit
 pub const USB_OTG_FS_BASE: u64 = 0x5000_0000;
 pub const USB_OTG_FS_SIZE: usize = 64 * 1024; // 64 KB USB OTG FS registers
 
+// ============================================================================
+// QSPI NOR Flash Memory Map Specification
+// ============================================================================
+// The hardware uses a 16 MB ISSI IS25LP128 / IS25WP128 Quad-SPI NOR Flash mapped
+// to memory-mapped address 0x9000_0000 through the STM32F446 QUADSPI controller.
+//
+// Valid QSPI Memory Layout:
+//
+// 1. Factory Stock Wavetables (Engine 3 - Wavetable):
+//    - Offset: 0x0000_0000..0x0004_0000 (256 KB)
+//    - Format: 16 wavetables * 32 single-cycle waveforms * 256 16-bit PCM samples
+//      (512 bytes per cycle = 16,384 bytes per table).
+//    - Populated dynamically at runtime from offset +0x0001_0000 (64 KB) of the
+//      firmware update archive's 320 KB wavetable image (target 0x81).
+//    - Uninitialized/clean-room state: 0xFF.
+//
+// 2. Active Preset Staging & Preset Flash Storage:
+//    - Offset: 0x0008_1000..0x0028_0FFF (~2 MB, 512 sectors of 4096 bytes)
+//    - Slots: 1..=128 (Factory & User Presets), 208..=223 (Factory Vocoder Presets)
+//    - Format: 4096-byte TLV-structured sectors.
+//      * Header: Magic 0x1901 (u16), Preset Number (u16), Version '1' (0x31), Name (14 bytes).
+//      * TLV Payload: Sections (VCO, VCF, EG1, Kbd, Arp, LFO, EG2, Gen, Sys, Mat, Seq).
+//      * Flash Integrity Trailers: 0xA5 at byte offsets 1040 (Pattern A), 2082 (Pattern B),
+//        3052 (Metadata), and 4095 (Sector End).
+//
+// 3. User Sample Storage (Engine 19 - Sample, Engine 20 - Grain):
+//    - Offset: 0x0028_1000..0x00F5_0FFF (~13 MB)
+//    - Format: 24-byte Arturia container header:
+//      * +0x00: Magic 0xFA55AAEF (u32 LE)
+//      * +0x04: Sample length in bytes (u32 LE)
+//      * +0x08: Non-zero Token/Generation ID (u32 LE)
+//      * +0x0C: Loop start offset in bytes (u32 LE)
+//      * +0x10: Loop end offset in bytes (u32 LE)
+//      * +0x14: Sample ID in high byte ((id & 0x7F) << 24)
+//      * +0x18: 16-bit signed PCM audio payload (48 kHz mono)
+//
+// 4. User Wavetable Bank A (Engine 18 - WaveUser):
+//    - Offset: 0x00F5_F000..0x00FA_EFFF (320 KB)
+//    - Format: First 64 KB (0x00F5_F000..0x00F6_EFFF) contains 16 table descriptors
+//      (4096 bytes each with names and cycle metadata).
+//      Remaining 256 KB (0x00F6_F000..0x00FA_EFFF) contains raw 16-bit PCM wavetable cycles.
+//    - Populated dynamically from target 0x81 of user-supplied .mff package.
+//    - Uninitialized/clean-room state: 0xFF.
+//
+// 5. User Wavetable Bank B (Engine 18 - Alternative Bank):
+//    - Offset: 0x00FA_F000..0x00FE_EFFF (256 KB, 16 tables * 16 KB)
+//    - When erased (0xFF), the stock firmware routes WaveUser lookups to Bank A (0x00F5_F000).
+//
+// 6. QSPI Status Sector:
+//    - Offset: 0x00FF_F000..0x00FF_FFFF (4 KB)
+//    - Byte 0x00FF_F000: ASCII 'Q' (0x51), indicating the QSPI NOR flash is formatted.
+// ============================================================================
+
 pub const QSPI_FLASH_BASE: u64 = 0x9000_0000;
 pub const QSPI_FLASH_SIZE: usize = 16 * 1024 * 1024; // 16 MB NOR Flash
 

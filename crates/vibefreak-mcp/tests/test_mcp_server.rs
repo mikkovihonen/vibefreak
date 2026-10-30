@@ -74,15 +74,18 @@ async fn test_mcp_tools_list_completeness() {
 #[tokio::test]
 async fn test_mcp_jsonrpc_io_session() {
     // Test full JSON-RPC 2.0 handshake and dispatch over an in-memory duplex channel
+    let mff_candidate = std::env::var("VIBEFREAK_MFF_PATH")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff"));
     let config = McpConfig {
         mode: McpMode::Standalone,
-        mff_path: Some(PathBuf::from("tests/fixtures/MicroFreak_Firmware_Update_5_0_0_2084.mff")),
+        mff_path: Some(mff_candidate),
         presets_path: PathBuf::from("target/test_mcp_presets.bin"),
         ..Default::default()
     };
 
     if !config.mff_path.as_ref().unwrap().exists() {
-        eprintln!("Skipping test: test firmware fixture not found");
+        eprintln!("Skipping test: test firmware fixture not found (set VIBEFREAK_MFF_PATH to run)");
         return;
     }
 
@@ -175,9 +178,11 @@ async fn test_mcp_jsonrpc_io_session() {
 
 #[tokio::test]
 async fn test_inprocess_swd_and_synth_operations() {
-    let mff_path = PathBuf::from("tests/fixtures/MicroFreak_Firmware_Update_5_0_0_2084.mff");
+    let mff_path = std::env::var("VIBEFREAK_MFF_PATH")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff"));
     if !mff_path.exists() {
-        eprintln!("Skipping test: test firmware fixture not found");
+        eprintln!("Skipping test: test firmware fixture not found (set VIBEFREAK_MFF_PATH to run)");
         return;
     }
 

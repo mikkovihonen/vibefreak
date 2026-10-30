@@ -467,7 +467,16 @@ fn resolve_firmware_source(
         return Ok(FirmwareSource::MffPackage(mff_path));
     }
 
-    // 2. If explicit loose binaries or explicit directory was requested:
+    // 2. Check VIBEFREAK_MFF environment variable:
+    if let Ok(env_path) = std::env::var("VIBEFREAK_MFF") {
+        let p = std::path::PathBuf::from(env_path);
+        if p.is_file() {
+            println!("===> Using firmware package from VIBEFREAK_MFF: {}", p.display());
+            return Ok(FirmwareSource::MffPackage(p));
+        }
+    }
+
+    // 3. If explicit loose binaries or explicit directory was requested:
     if custom_main.is_some() || custom_dir.is_some() {
         let fw_dir = custom_dir.unwrap_or_else(|| std::path::PathBuf::from("original_firmware/unpacked"));
         let main_bin = custom_main.unwrap_or_else(|| fw_dir.join("nanowave_main_payload_stm32f446.bin"));
@@ -498,10 +507,23 @@ fn resolve_firmware_source(
     }
 
     // 3. Auto-detection heuristics:
+    // 4. Check user config directories:
+    if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
+        let home_path = Path::new(&home);
+        let config_candidates = [
+            home_path.join(".config/vibefreak"),
+            home_path.join(".vibefreak"),
+        ];
+        if let Some(cfg_mff) = find_mff_file(&config_candidates.iter().map(|p| p.as_path()).collect::<Vec<_>>()) {
+            println!("===> Using firmware package from config: {}", cfg_mff.display());
+            return Ok(FirmwareSource::MffPackage(cfg_mff));
+        }
+    }
+
+    // 5. Auto-detection heuristics in workspace directories:
     if let Some(detected_mff) = find_mff_file(&[
         Path::new("."),
         Path::new("dist"),
-        Path::new("tests/fixtures"),
         Path::new("original_firmware/microfreak"),
     ]) {
         println!("===> Auto-detected firmware package: {}", detected_mff.display());
@@ -533,7 +555,14 @@ fn resolve_firmware_source(
         });
     }
 
-    Err("No firmware detected! Please specify an Arturia .mff package (e.g. 'vibefreak firmware.mff') or provide build directory with '--firmware-dir build/'.".into())
+    Err(
+        "No firmware detected!\n\
+         Please provide an official MicroFreak firmware update package (.mff):\n\
+           • CLI argument:      vibefreak [PATH_TO_MFF]\n\
+           • Environment:       export VIBEFREAK_MFF=/path/to/firmware.mff\n\
+           • Config directory:  ~/.config/vibefreak/firmware.mff (or ~/.vibefreak/firmware.mff)\n\
+           • Loose build:       vibefreak --firmware-dir <DIR>".into()
+    )
 }
 
 fn run_headless_test(fw_source: &FirmwareSource) -> Result<(), Box<dyn std::error::Error>> {

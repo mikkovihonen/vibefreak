@@ -1,5 +1,9 @@
 # VibeFreak
 
+<div align="center">
+<img src="logo.png" width="300"/>
+</div>
+
 **VibeFreak** is an independent, 100% standalone, cycle-accurate multi-core hardware emulator and native Web HMI for the **Arturia MicroFreak** paraphonic hybrid synthesizer.
 
 Written in Rust, VibeFreak emulates the entire physical hardware architecture:
@@ -25,11 +29,19 @@ cargo install --path crates/vibefreak-cli
 This installs the `vibefreak` executable directly into `~/.cargo/bin`.
 
 ### 2. Launching Packaged Firmware
-Simply pass any `.mff` firmware package (official or custom):
+
+VibeFreak is distributed as a 100% clean-room emulator and does **not** ship with copyrighted firmware ROMs or proprietary wavetables. To boot the full synthesizer emulation, supply your own legally obtained official Arturia MicroFreak firmware update package (`.mff`):
+
+1. Download the firmware update archive (`MicroFreak_Firmware_Update_*.mff`) from Arturia's official website.
+2. Launch VibeFreak by passing the file path:
 ```bash
 vibefreak MicroFreak_Firmware_Update_5_0_0_2084.mff
 ```
-Or launch without arguments to auto-detect any `.mff` in the current working directory:
+3. Alternatively, place the firmware package in one of the auto-detected locations:
+   - Current directory (`./firmware.mff` or any `*.mff`)
+   - User config directory: `~/.config/vibefreak/firmware.mff` (or `~/.vibefreak/firmware.mff`)
+   - Or set the environment variable: `export VIBEFREAK_MFF=/path/to/firmware.mff`
+   Then simply run:
 ```bash
 vibefreak
 ```
@@ -186,6 +198,32 @@ Or use the standalone binary:
 - `debug_firmware`: Interactive workflow to diagnose crashes, inspect registers, and check interrupts
 - `inspect_preset`: Guided workflow to analyze active patch, oscillator engine, and modulation matrix routing
 - `test_patch_audio`: Automated synthesis test workflow playing keys and adjusting filter cutoff
+
+---
+
+## QSPI NOR Flash Architecture & Valid Memory Specification
+
+The MicroFreak hardware features an external 16 MB ISSI NOR flash connected via STM32 Quad-SPI (mapped in memory-mapped mode at `0x9000_0000..0x90FF_FFFF`). VibeFreak accurately replicates every memory bank, sector trailer, and verification check expected by the stock firmware:
+
+| Memory Region | Address Range | Size | Description & Validation Criteria |
+|---|---|---|---|
+| **Factory Stock Wavetables** | `0x0000_0000..0x0003_FFFF` | 256 KB | 16 stock tables for Engine 3 (Wavetable). Each table holds 32 single-cycle waveforms with 256 16-bit PCM samples (512 bytes/cycle). Extracted from offset `+0x0001_0000` of the firmware package's 320 KB wavetable target (`0x81`). Clean-room state: `0xFF`. |
+| **Reserved Flash** | `0x0004_0000..0x0008_0FFF` | ~260 KB | Unused erased NOR sectors (`0xFF`). |
+| **Active & Stored Presets** | `0x0008_1000..0x0028_0FFF` | ~2 MB | Up to 512 patch slots (4096 bytes per sector). Each sector requires valid TLV section tags (`VCO`, `VCF`, `EG1`, `Kbd`, `Arp`, `LFO`, `EG2`, `Gen`, `Sys`, `Mat`, `Seq`) and flash integrity trailer bytes (`0xA5`) at byte offsets 1040, 2082, 3052, and 4095. |
+| **User Sample Memory** | `0x0028_1000..0x00F5_0FFF` | ~13 MB | 64 sample slots for Engine 19 (Sample) and Engine 20 (Grain). Each slot begins with a 24-byte header: magic `0xFA55AAEF`, byte length, non-zero token ID, loop start/end offsets, sample slot index, followed by 16-bit signed PCM audio. |
+| **User Wavetable Bank A** | `0x00F5_F000..0x00FA_EFFF` | 320 KB | User wavetables for Engine 18 (WaveUser). The first 64 KB contains 16 table descriptors (names and cycle indices); the subsequent 256 KB contains raw 16-bit PCM waveform cycles. Loaded dynamically from target `0x81`. Clean-room state: `0xFF`. |
+| **User Wavetable Bank B** | `0x00FA_F000..0x00FE_EFFF` | 256 KB | Alternative user wavetable bank. When cleanly erased (`0xFF`), firmware routes user wavetable queries to Bank A. |
+| **QSPI Status Sector** | `0x00FF_F000..0x00FF_FFFF` | 4 KB | Byte `0x00FF_F000` must contain ASCII `'Q'` (`0x51`) to signal formatted flash memory. |
+
+---
+
+## Legal & Trademark Disclaimer
+
+**VibeFreak** is an independent, clean-room hardware emulator and developer tool created for educational and reverse-engineering purposes.
+
+- **No Affiliation**: VibeFreak is not affiliated, associated, authorized, endorsed by, or in any way officially connected with **Arturia SA**, or any of its subsidiaries or affiliates.
+- **Trademarks**: The names **"Arturia"** and **"MicroFreak"**, as well as related names, marks, emblems, and images, are registered trademarks of Arturia SA. Their use in this repository is strictly nominative to describe hardware compatibility and interoperability.
+- **No Proprietary Assets Distributed**: This software repository does not contain, distribute, or bundle any copyrighted Arturia firmware binaries, proprietary sound ROMs, factory sample banks, or proprietary wavetable files. All emulated operations require the user to provide their own legally obtained firmware archive.
 
 ---
 

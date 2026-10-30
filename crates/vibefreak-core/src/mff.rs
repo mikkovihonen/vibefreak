@@ -176,6 +176,60 @@ impl MffFirmwarePackage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+
+    fn build_mock_container(target_id: u8, mut payload: Vec<u8>) -> Vec<u8> {
+        let is_qspi = (target_id & 0x80) != 0;
+        let csum = if is_qspi {
+            compute_xor_checksum(&payload)
+        } else {
+            let c = compute_xor_checksum(&payload);
+            payload.push(c); // append trailer byte
+            c
+        };
+
+        let mut container = vec![0u8; ARTURIA_BIN_HEADER_SIZE];
+        container[0] = target_id;
+        container[1] = csum;
+        container.extend_from_slice(&payload);
+        container
+    }
+
+    fn build_mock_mff_zip(version: &str) -> Vec<u8> {
+        let mut buf = std::io::Cursor::new(Vec::new());
+        {
+            let mut zip = zip::ZipWriter::new(&mut buf);
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+
+            zip.start_file("info.json", options).unwrap();
+            let info_json = format!(r#"{{"version_number": "{}"}}"#, version);
+            zip.write_all(info_json.as_bytes()).unwrap();
+
+            let main_payload = {
+                let mut p = vec![0x11, 0x22, 0x33, 0x44, 0x55];
+                p.extend_from_slice(&[0u8; 15]); // 15-byte zero padding before trailer
+                p
+            };
+
+            let targets = [
+                (TARGET_MAIN_MCU, "main.bin", main_payload),
+                (TARGET_OLED_COPROC, "oled.bin", vec![0x66, 0x77, 0x88]),
+                (TARGET_MATRIX_COPROC, "matrix.bin", vec![0x99, 0xAA, 0xBB]),
+                (TARGET_KEYBOARD_COPROC, "kbd.bin", vec![0xCC, 0xDD, 0xEE]),
+                (TARGET_QSPI_WAVETABLES, "wavetable.bin", vec![0x42; 327680]),
+            ];
+
+            for (target_id, filename, payload) in targets {
+                zip.start_file(filename, options).unwrap();
+                let container = build_mock_container(target_id, payload);
+                zip.write_all(&container).unwrap();
+            }
+
+            zip.finish().unwrap();
+        }
+        buf.into_inner()
+    }
 
     #[test]
     fn test_compute_xor_checksum() {
@@ -186,8 +240,24 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_synthetic_mock_mff() {
+        let mock_zip = build_mock_mff_zip("5.0.0.9999");
+        let pkg = MffFirmwarePackage::from_bytes(&mock_zip).expect("Failed to parse mock MFF");
+        assert_eq!(pkg.version.as_deref(), Some("5.0.0.9999"));
+        assert_eq!(pkg.main_mcu, vec![0x11, 0x22, 0x33, 0x44, 0x55]);
+        assert_eq!(pkg.oled_coproc[0..3], [0x66, 0x77, 0x88]);
+        assert_eq!(pkg.matrix_coproc[0..3], [0x99, 0xAA, 0xBB]);
+        assert_eq!(pkg.kbd_coproc[0..3], [0xCC, 0xDD, 0xEE]);
+        assert_eq!(pkg.qspi_wavetable.len(), 327680);
+        assert_eq!(pkg.qspi_wavetable[0], 0x42);
+    }
+
+    #[test]
     fn test_parse_official_mff_if_present() {
-        let path = Path::new("../../original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff");
+        let env_mff = std::env::var("VIBEFREAK_MFF_PATH").ok().map(std::path::PathBuf::from);
+        let path = env_mff.unwrap_or_else(|| {
+            Path::new("../../original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff").to_path_buf()
+        });
         if !path.exists() {
             // Also test relative to workspace root
             let root_path = Path::new("original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff");

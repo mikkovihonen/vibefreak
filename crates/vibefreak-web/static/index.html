@@ -215,7 +215,7 @@
   .clock-input-wrap {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     justify-content: space-between;
   }
   .clk-tap-btn {
@@ -231,44 +231,102 @@
   }
   .clk-tap-btn:hover { background: #323b50; border-color: #586584; }
   .clk-tap-btn:active { background: #84cc16; color: #000; box-shadow: 0 0 10px #84cc16; }
+
+  /* Potentiometer Style BPM Knob */
+  .clock-pot-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex: 0 0 auto;
+  }
+  .knob-cap.pot-bpm {
+    width: 42px;
+    height: 42px;
+    border: 2px solid #4a5568;
+    cursor: ns-resize;
+    user-select: none;
+    touch-action: none;
+    position: relative;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #3d4250, #17181f);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.25);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .knob-cap.pot-bpm:hover {
+    border-color: #84cc16;
+    box-shadow: 0 0 8px rgba(132, 204, 22, 0.35), inset 0 1px 2px rgba(255,255,255,0.25);
+  }
+  .knob-cap.pot-bpm:focus-visible {
+    outline: 2px solid #84cc16;
+    outline-offset: 2px;
+    border-color: #a3e635;
+  }
+  .knob-cap.pot-bpm .knob-indicator {
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    width: 2.5px;
+    height: 12px;
+    background: #84cc16;
+    border-radius: 2px;
+    box-shadow: 0 0 4px rgba(132, 204, 22, 0.7);
+    transform-origin: 50% 18px;
+    transform: translateX(-50%) rotate(-45deg);
+  }
+
   .clock-gen-controls {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    flex: 1;
-  }
-  .clock-gen-top {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    justify-content: space-between;
+    flex: 1 1 auto;
+    min-width: 0;
   }
   .clk-run-btn {
     background: #242938;
     border: 1px solid #3d455b;
     color: #84cc16;
-    padding: 4px 8px;
+    padding: 3px 6px;
     border-radius: 4px;
     font-size: 10px;
     font-weight: 800;
     cursor: pointer;
     letter-spacing: 0.5px;
     transition: 0.1s;
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
   }
   .clk-run-btn:hover { background: #30374a; }
+  .clk-run-btn:focus-visible {
+    outline: 2px solid #84cc16;
+    outline-offset: 1px;
+  }
   .clk-run-btn.running {
     background: #84cc16;
     color: #0b0e14;
     box-shadow: 0 0 10px #84cc16;
     border-color: #a3e635;
   }
+  .clock-fields-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+  }
   .clock-field {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 4px;
-    font-size: 9px;
+    font-size: 8.5px;
     color: #8b92a4;
     font-weight: 700;
+  }
+  .clock-field label {
+    flex: 0 0 auto;
+    font-size: 8.5px;
+    cursor: pointer;
   }
   .clock-num-input, .clock-select {
     background: #141720;
@@ -276,20 +334,26 @@
     color: #fff;
     padding: 2px 4px;
     border-radius: 4px;
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 700;
     font-family: monospace;
     outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .clock-num-input { width: 48px; text-align: right; }
-  .clock-slider {
-    width: 100%;
-    height: 4px;
-    background: #202636;
-    border-radius: 2px;
-    outline: none;
-    cursor: pointer;
-    accent-color: #84cc16;
+  .clock-num-input:focus-visible, .clock-select:focus-visible {
+    border-color: #84cc16;
+    box-shadow: 0 0 0 1px #84cc16;
+  }
+  .clock-num-input {
+    width: 46px;
+    text-align: right;
+  }
+  .clock-select {
+    width: 52px;
+    font-family: inherit;
+    font-size: 8.5px;
+    padding: 2px 2px;
   }
 
   /* Headset & Audio In (TLV320AIC3104) Controls */
@@ -1826,10 +1890,26 @@
             <button class="clk-tap-btn" id="clk-in-tap-btn" title="Tap to send manual clock pulse / step">TAP</button>
           </div>
 
+          <!-- Master Clock BPM Potentiometer -->
+          <div class="clock-pot-col">
+            <div class="knob-cap pot-bpm" id="clk-gen-bpm-knob"
+                 role="slider"
+                 tabindex="0"
+                 aria-label="Master Clock BPM"
+                 aria-valuemin="30.0"
+                 aria-valuemax="300.0"
+                 aria-valuenow="120.0"
+                 aria-valuetext="120.0 BPM"
+                 title="Master Clock BPM (Drag, scroll or arrow keys to adjust)">
+              <div class="knob-indicator"></div>
+            </div>
+            <span class="knob-label" style="font-size:8px; letter-spacing:0.5px;">TEMPO</span>
+          </div>
+
           <!-- Master Clock Generator Controls -->
           <div class="clock-gen-controls">
-            <div class="clock-gen-top">
-              <button class="clk-run-btn" id="clk-gen-run-btn" title="Run / Stop virtual master clock">RUN</button>
+            <button class="clk-run-btn" id="clk-gen-run-btn" title="Run / Stop virtual master clock">RUN</button>
+            <div class="clock-fields-stack">
               <div class="clock-field">
                 <label for="clk-gen-bpm">BPM</label>
                 <input type="number" id="clk-gen-bpm" class="clock-num-input" min="30" max="300" step="0.5" value="120.0" />
@@ -1844,7 +1924,6 @@
                 </select>
               </div>
             </div>
-            <input type="range" id="clk-gen-bpm-slider" class="clock-slider" min="30" max="300" step="0.5" value="120.0" />
           </div>
         </div>
       </div>
@@ -2356,7 +2435,7 @@
     }
   }
 
-  document.querySelectorAll(".knob-cap").forEach(knob => {
+  document.querySelectorAll(".knob-cap:not(.pot-bpm)").forEach(knob => {
     let isDragging = false;
     let dragStartY = 0;
     let lastEncoderY = 0;
@@ -2844,7 +2923,7 @@
   const clkInTapBtn = document.getElementById("clk-in-tap-btn");
   const clkGenRunBtn = document.getElementById("clk-gen-run-btn");
   const clkGenBpmInput = document.getElementById("clk-gen-bpm");
-  const clkGenBpmSlider = document.getElementById("clk-gen-bpm-slider");
+  const clkGenBpmKnob = document.getElementById("clk-gen-bpm-knob");
   const clkGenPpqSelect = document.getElementById("clk-gen-ppq");
 
   let clockGenRunning = false;
@@ -2852,6 +2931,25 @@
   let clockPpq = 24;
   let clockTimerId = null;
   let nextClockTickTime = 0;
+
+  function updateBpmKnobVisual(bpm) {
+    if (!clkGenBpmKnob) return;
+    const clamped = Math.max(30.0, Math.min(300.0, bpm));
+    // Sweep: 270 degree arc from -135deg (30 BPM) to +135deg (300 BPM)
+    const angle = ((clamped - 30.0) / 270.0) * 270.0 - 135.0;
+    const ind = clkGenBpmKnob.querySelector(".knob-indicator");
+    if (ind) ind.style.transform = `translateX(-50%) rotate(${angle.toFixed(1)}deg)`;
+    clkGenBpmKnob.setAttribute("aria-valuenow", clamped.toFixed(1));
+    clkGenBpmKnob.setAttribute("aria-valuetext", `${clamped.toFixed(1)} BPM`);
+  }
+
+  function setBpm(bpm, syncInput = true) {
+    clockBpm = Math.max(30.0, Math.min(300.0, Math.round(bpm * 2) / 2));
+    updateBpmKnobVisual(clockBpm);
+    if (syncInput && clkGenBpmInput) {
+      clkGenBpmInput.value = clockBpm.toFixed(1);
+    }
+  }
 
   if (clkInTapBtn) {
     clkInTapBtn.addEventListener("pointerdown", (e) => {
@@ -2912,15 +3010,85 @@
     });
   }
 
-  if (clkGenBpmSlider && clkGenBpmInput) {
-    clkGenBpmSlider.addEventListener("input", () => {
-      clockBpm = Math.max(30.0, Math.min(300.0, parseFloat(clkGenBpmSlider.value) || 120.0));
-      clkGenBpmInput.value = clockBpm.toFixed(1);
+  if (clkGenBpmKnob) {
+    updateBpmKnobVisual(clockBpm);
+
+    // Mouse wheel support (with Shift key for larger 5 BPM steps)
+    clkGenBpmKnob.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const dir = e.deltaY < 0 ? 1 : -1;
+      const step = e.shiftKey ? 5.0 : 1.0;
+      setBpm(clockBpm + dir * step);
+    }, { passive: false });
+
+    // Pointer drag support (mouse, touch, stylus)
+    let isDraggingKnob = false;
+    let dragStartY = 0;
+    let dragStartBpm = 120.0;
+
+    clkGenBpmKnob.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      isDraggingKnob = true;
+      dragStartY = e.clientY;
+      dragStartBpm = clockBpm;
+      try { clkGenBpmKnob.setPointerCapture(e.pointerId); } catch (_) {}
+
+      const onPointerMove = (ev) => {
+        if (!isDraggingKnob) return;
+        const dy = dragStartY - ev.clientY; // upward drag increases BPM
+        const deltaBpm = dy * 1.5;
+        setBpm(dragStartBpm + deltaBpm);
+      };
+
+      const releaseKnob = (ev) => {
+        if (!isDraggingKnob) return;
+        isDraggingKnob = false;
+        try { clkGenBpmKnob.releasePointerCapture(ev.pointerId); } catch (_) {}
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", releaseKnob);
+        window.removeEventListener("pointercancel", releaseKnob);
+      };
+
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", releaseKnob);
+      window.addEventListener("pointercancel", releaseKnob);
+    });
+
+    // Keyboard accessibility (ArrowUp/Right, ArrowDown/Left, PageUp/Down, Home/End)
+    clkGenBpmKnob.addEventListener("keydown", (e) => {
+      let handled = true;
+      const step = e.shiftKey ? 5.0 : 0.5;
+      if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+        setBpm(clockBpm + step);
+      } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+        setBpm(clockBpm - step);
+      } else if (e.key === "PageUp") {
+        setBpm(clockBpm + 10.0);
+      } else if (e.key === "PageDown") {
+        setBpm(clockBpm - 10.0);
+      } else if (e.key === "Home") {
+        setBpm(30.0);
+      } else if (e.key === "End") {
+        setBpm(300.0);
+      } else {
+        handled = false;
+      }
+      if (handled) e.preventDefault();
+    });
+  }
+
+  if (clkGenBpmInput) {
+    clkGenBpmInput.addEventListener("input", () => {
+      const val = parseFloat(clkGenBpmInput.value);
+      if (!isNaN(val)) {
+        clockBpm = Math.max(30.0, Math.min(300.0, val));
+        updateBpmKnobVisual(clockBpm);
+      }
     });
 
     clkGenBpmInput.addEventListener("change", () => {
-      clockBpm = Math.max(30.0, Math.min(300.0, parseFloat(clkGenBpmInput.value) || 120.0));
-      clkGenBpmSlider.value = clockBpm.toString();
+      const val = parseFloat(clkGenBpmInput.value);
+      setBpm(isNaN(val) ? 120.0 : val, true);
     });
   }
 

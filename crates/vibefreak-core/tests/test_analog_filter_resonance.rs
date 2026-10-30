@@ -8,9 +8,11 @@ fn test_analog_filter_resonance_sweep_and_pressure() {
         .unwrap()
         .parent()
         .unwrap();
-    let mff_path = repo_root.join("tests/fixtures/MicroFreak_Firmware_Update_5_0_0_2084.mff");
+    let mff_path = std::env::var("VIBEFREAK_MFF_PATH")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| repo_root.join("original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff"));
     if !mff_path.exists() {
-        eprintln!("MFF firmware package not found at {:?}", mff_path);
+        eprintln!("Skipping test: MFF firmware package not found (set VIBEFREAK_MFF_PATH to run)");
         return;
     }
 

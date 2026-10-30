@@ -13,6 +13,7 @@ Cargo.lock
 user_presets.bin
 *.wav
 *.bin
-!crates/**/assets/**/*.bin
 *.mff
+tests/fixtures/*.mff
+
 

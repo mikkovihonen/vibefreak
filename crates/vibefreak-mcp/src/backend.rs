@@ -1,6 +1,6 @@
 use std::future::Future;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -696,13 +696,33 @@ fn boot_inprocess_emulator(config: &McpConfig) -> Result<VibeFreakEmulator, Box<
         return Ok(emu);
     }
 
-    // 3. Auto-detection heuristics
-    let search_roots = [
-        Path::new("."),
-        Path::new("dist"),
-        Path::new("tests/fixtures"),
-        Path::new("original_firmware/microfreak"),
+    // 3. Environment variable VIBEFREAK_MFF
+    if let Ok(env_path) = std::env::var("VIBEFREAK_MFF") {
+        let p = PathBuf::from(env_path);
+        if p.is_file() {
+            eprintln!("[MCP] Using firmware archive from VIBEFREAK_MFF: {}", p.display());
+            let pkg = vibefreak_core::MffFirmwarePackage::from_file(&p)?;
+            let mut emu = VibeFreakEmulator::from_package(&pkg)?;
+            if config.presets_path.exists() {
+                let _ = emu.load_qspi_from_disk(&config.presets_path);
+            }
+            emu.boot(100_000_000);
+            eprintln!("[MCP] Firmware booted in {:?}", t0.elapsed());
+            return Ok(emu);
+        }
+    }
+
+    // 4. Auto-detection heuristics
+    let mut search_roots = vec![
+        PathBuf::from("."),
+        PathBuf::from("dist"),
+        PathBuf::from("original_firmware/microfreak"),
     ];
+    if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
+        let home_path = PathBuf::from(home);
+        search_roots.push(home_path.join(".config/vibefreak"));
+        search_roots.push(home_path.join(".vibefreak"));
+    }
     for dir in &search_roots {
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {

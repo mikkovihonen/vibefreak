@@ -148,17 +148,6 @@ fn apply_qspi_data(flash: &mut [u8], data: &[u8]) {
             }
         }
 
-        if flash[QSPI_STOCK_WAVETABLE_DEST_ADDR..QSPI_STOCK_WAVETABLE_DEST_ADDR + 4] == [0xFF, 0xFF, 0xFF, 0xFF] {
-            if crate::factory_data::FACTORY_WAVETABLES.len() >= 0x0005_0000 {
-                flash[QSPI_STOCK_WAVETABLE_DEST_ADDR..QSPI_STOCK_WAVETABLE_DEST_ADDR + QSPI_STOCK_WAVETABLE_SIZE_BYTES]
-                    .copy_from_slice(&crate::factory_data::FACTORY_WAVETABLES[0x0001_0000..0x0001_0000 + QSPI_STOCK_WAVETABLE_SIZE_BYTES]);
-            }
-        }
-        if flash[QSPI_WAVETABLE_DEST_ADDR..QSPI_WAVETABLE_DEST_ADDR + 4] == [0xFF, 0xFF, 0xFF, 0xFF] {
-            let wt_len = crate::factory_data::FACTORY_WAVETABLES.len().min(QSPI_WAVETABLE_SIZE_BYTES);
-            flash[QSPI_WAVETABLE_DEST_ADDR..QSPI_WAVETABLE_DEST_ADDR + wt_len]
-                .copy_from_slice(&crate::factory_data::FACTORY_WAVETABLES[..wt_len]);
-        }
         if flash[QSPI_STATUS_SECTOR_BASE] == 0xFF {
             flash[QSPI_STATUS_SECTOR_BASE] = 0x51;
         }
@@ -167,6 +156,9 @@ fn apply_qspi_data(flash: &mut [u8], data: &[u8]) {
         if data.len() >= 0x0005_0000 {
             flash[QSPI_STOCK_WAVETABLE_DEST_ADDR..QSPI_STOCK_WAVETABLE_DEST_ADDR + QSPI_STOCK_WAVETABLE_SIZE_BYTES]
                 .copy_from_slice(&data[0x0001_0000..0x0001_0000 + QSPI_STOCK_WAVETABLE_SIZE_BYTES]);
+        }
+        if flash[QSPI_STATUS_SECTOR_BASE] == 0xFF {
+            flash[QSPI_STATUS_SECTOR_BASE] = 0x51;
         }
     } else if data.len() >= 64 && (data[0] & 0x80) != 0 {
         let qspi_dest = u32::from_le_bytes([data[4], data[5], data[6], data[7]]) as usize;
@@ -2083,6 +2075,18 @@ impl VibeFreakEmulator {
         self.uc.get_data_mut().mmio.qspi.clear_dirty();
     }
 
+    /// Checks whether valid wavetable memory data is loaded in QSPI flash.
+    /// Returns true if either the stock wavetable region (Engine 3) or user wavetable
+    /// region (Engine 18) contains non-erased (non-0xFF) data.
+    pub fn is_wavetable_loaded(&self) -> bool {
+        let flash = &self.uc.get_data().mmio.qspi.flash_memory;
+        if flash.len() < QSPI_WAVETABLE_DEST_ADDR + 4 {
+            return false;
+        }
+        flash[QSPI_STOCK_WAVETABLE_DEST_ADDR..QSPI_STOCK_WAVETABLE_DEST_ADDR + 4] != [0xFF, 0xFF, 0xFF, 0xFF]
+            || flash[QSPI_WAVETABLE_DEST_ADDR..QSPI_WAVETABLE_DEST_ADDR + 4] != [0xFF, 0xFF, 0xFF, 0xFF]
+    }
+
     /// Configure whether Unicorn JIT VFP Fast-Path (hardware single-precision floating-point acceleration
     /// for host ARM64 and x86-64) is enabled or disabled.
     pub fn set_vfp_fast_path(&mut self, enabled: bool) {
@@ -2992,13 +2996,16 @@ mod tests {
             return (oled_path, matrix_path, kbd_path);
         }
 
-        let candidate_mffs = [
-            repo_root.join("tests/fixtures/MicroFreak_Firmware_Update_5_0_0_2084.mff"),
+        let mut candidate_mffs = Vec::new();
+        if let Ok(env_path) = std::env::var("VIBEFREAK_MFF_PATH") {
+            candidate_mffs.push(std::path::PathBuf::from(env_path));
+        }
+        candidate_mffs.extend([
             repo_root.join("original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff"),
             repo_root.join("dist/MicroFreak_OpenFirmware_5_0_0_2084.mff"),
             repo_root.parent().unwrap_or(repo_root).join("open-microfreak/original_firmware/microfreak/MicroFreak_Firmware_Update_5_0_0_2084.mff"),
             repo_root.parent().unwrap_or(repo_root).join("open-microfreak/dist/MicroFreak_OpenFirmware_5_0_0_2084.mff"),
-        ];
+        ]);
 
         for mff_candidate in &candidate_mffs {
             if mff_candidate.is_file() {
@@ -3581,6 +3588,57 @@ mod tests {
         // Verify toggle back on
         emu.set_vfp_fast_path(true);
         assert!(emu.is_vfp_fast_path_enabled(), "VFP Fast-Path must be enabled after set_vfp_fast_path(true)");
+    }
+
+    #[test]
+    fn test_qspi_clean_room_wavetable_guarantee() {
+        // 1. Initial factory image in clean-room mode must have erased (0xFF) wavetable memory
+        let mut flash = crate::factory_data::generate_factory_qspi_image();
+        assert_eq!(
+            &flash[QSPI_STOCK_WAVETABLE_DEST_ADDR..QSPI_STOCK_WAVETABLE_DEST_ADDR + 16],
+            &[0xFFu8; 16],
+            "Stock wavetable region must be erased (0xFF) in clean-room factory image"
+        );
+        assert_eq!(
+            &flash[QSPI_WAVETABLE_DEST_ADDR..QSPI_WAVETABLE_DEST_ADDR + 16],
+            &[0xFFu8; 16],
+            "User wavetable region must be erased (0xFF) in clean-room factory image"
+        );
+        assert_eq!(flash[QSPI_STATUS_SECTOR_BASE], 0x51, "QSPI status sector must be formatted ('Q')");
+
+        // 2. Synthesize a 320 KB wavetable package (mocking .mff target 0x81)
+        let mut mock_wt = vec![0u8; QSPI_WAVETABLE_SIZE_BYTES];
+        // Fill header table (first 64 KB) with pattern 0xAA
+        mock_wt[0..0x0001_0000].fill(0xAA);
+        // Fill wavetable PCM data (next 256 KB) with pattern 0x55
+        mock_wt[0x0001_0000..].fill(0x55);
+
+        // 3. Apply to QSPI flash
+        apply_qspi_data(&mut flash, &mock_wt);
+
+        // 4. Verify guaranteed loading into both regions:
+        // User Wavetables Bank A at 0x00F5_F000
+        assert_eq!(
+            &flash[QSPI_WAVETABLE_DEST_ADDR..QSPI_WAVETABLE_DEST_ADDR + 16],
+            &[0xAAu8; 16],
+            "User wavetable header region must match loaded package"
+        );
+        assert_eq!(
+            &flash[QSPI_WAVETABLE_DEST_ADDR + 0x0001_0000..QSPI_WAVETABLE_DEST_ADDR + 0x0001_0010],
+            &[0x55u8; 16],
+            "User wavetable PCM region must match loaded package"
+        );
+
+        // Factory Stock Wavetables at 0x0000_0000
+        assert_eq!(
+            &flash[QSPI_STOCK_WAVETABLE_DEST_ADDR..QSPI_STOCK_WAVETABLE_DEST_ADDR + 16],
+            &[0x55u8; 16],
+            "Stock wavetables must be automatically mapped from package offset +64KB"
+        );
+        assert_eq!(
+            &flash[QSPI_STOCK_WAVETABLE_DEST_ADDR + QSPI_STOCK_WAVETABLE_SIZE_BYTES - 16..QSPI_STOCK_WAVETABLE_DEST_ADDR + QSPI_STOCK_WAVETABLE_SIZE_BYTES],
+            &[0x55u8; 16]
+        );
     }
 }
 
