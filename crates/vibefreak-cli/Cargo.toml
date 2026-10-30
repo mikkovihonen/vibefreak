@@ -7,6 +7,7 @@ license = "GPL-3.0-or-later"
 [dependencies]
 vibefreak-core = { path = "../vibefreak-core" }
 vibefreak-web = { path = "../vibefreak-web" }
+vibefreak-mcp = { path = "../vibefreak-mcp" }
 log.workspace = true
 env_logger.workspace = true
 tokio.workspace = true

@@ -15,6 +15,11 @@ fn test_wavetable_paraphonic_synthesis() {
     let qspi_bin = repo_root.join("original_firmware/unpacked/userwavetable_factory_payload_qspi.bin");
     let presets_path = repo_root.join("user_presets.bin");
 
+    if !main_bin.exists() {
+        eprintln!("Skipping test: loose firmware binaries not found at {:?}", main_bin);
+        return;
+    }
+
     let mut emu = VibeFreakEmulator::new(&main_bin, Some(&qspi_bin), &oled_bin, &matrix_bin, &kbd_bin)
         .expect("Failed to initialize emulator");
 

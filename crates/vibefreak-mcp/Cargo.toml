@@ -1,0 +1,23 @@
+[package]
+name = "vibefreak-mcp"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Model Context Protocol (MCP) server for VibeFreak emulator and SWD debugging"
+
+[dependencies]
+vibefreak-core = { path = "../vibefreak-core" }
+vibefreak-web = { path = "../vibefreak-web" }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-tungstenite.workspace = true
+futures-util.workspace = true
+crossbeam-channel.workspace = true
+log.workspace = true
+env_logger.workspace = true
+
+[[bin]]
+name = "vibefreak-mcp"
+path = "src/main.rs"
+

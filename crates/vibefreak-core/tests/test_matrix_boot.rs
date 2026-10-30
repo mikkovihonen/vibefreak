@@ -267,6 +267,10 @@ fn test_panel_step_timing() {
         .parent()
         .unwrap();
     let matrix_bin_path = repo_root.join("original_firmware/unpacked/nanowave_iochip_matrix_payload_stm32f0.bin");
+    if !matrix_bin_path.exists() {
+        eprintln!("Matrix binary not found, skipping");
+        return;
+    }
     let mut matrix = vibefreak_core::coproc::matrix::MatrixCoprocessor::new(&matrix_bin_path).unwrap();
 
     eprintln!("TIM6: cr1={}, psc={}, arr={}, sr={}, cnt={}",

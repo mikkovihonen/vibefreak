@@ -4,6 +4,7 @@ members = [
     "crates/vibefreak-core",
     "crates/vibefreak-web",
     "crates/vibefreak-cli",
+    "crates/vibefreak-mcp",
 ]
 
 [workspace.dependencies]
@@ -23,6 +24,7 @@ futures-util = "0.3"
 cpal = "0.15"
 rayon = "1.10"
 zip = { version = "9.1", default-features = false, features = ["deflate"] }
+tokio-tungstenite = "0.24"
 
 [profile.release]
 opt-level = 3

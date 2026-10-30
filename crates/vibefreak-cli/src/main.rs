@@ -31,10 +31,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("COMMANDS:");
         println!("    test [PATH_TO_MFF]       Run headless boot test and verify OLED output");
         println!("    build-qspi [PATH]        Generate factory 16 MB QSPI flash image (default: user_presets.bin)");
+        println!("    mcp [OPTIONS] [PATH]     Run Model Context Protocol (MCP) server for coding agents");
         println!();
         println!("OPTIONS:");
         println!("    -p, --port <PORT>        Web server port (default: 8081)");
         println!("    --presets <PATH>         User preset disk persistence file (default: user_presets.bin)");
+        println!("    --standalone             Force standalone in-process emulator in MCP mode");
+        println!("    --connect <HOST:PORT>    Connect to existing VibeFreak instance in MCP mode");
         println!("    --firmware-dir <DIR>     Directory containing loose payload binaries");
         println!("    --open-firmware          Use open-source firmware from build/ directory");
         println!("    --main-bin <PATH>        Explicit path to Main MCU binary (STM32F446)");
@@ -60,6 +63,81 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::fs::write(&out_path, &image)?;
         println!("Successfully wrote {} bytes to {:?}", image.len(), out_path);
         return Ok(());
+    }
+
+    if args.iter().any(|s| s == "mcp" || s == "--mcp") {
+        let mut config = vibefreak_mcp::McpConfig::default();
+        let mut i = 1;
+        while i < args.len() {
+            let arg = &args[i];
+            match arg.as_str() {
+                "mcp" | "--mcp" => {}
+                "--standalone" => {
+                    config.mode = vibefreak_mcp::McpMode::Standalone;
+                }
+                "--connect" if i + 1 < args.len() => {
+                    let target = &args[i + 1];
+                    let addr: std::net::SocketAddr = if let Ok(sa) = target.parse() {
+                        sa
+                    } else if let Ok(p) = target.parse::<u16>() {
+                        std::net::SocketAddr::from(([127, 0, 0, 1], p))
+                    } else {
+                        std::net::SocketAddr::from(([127, 0, 0, 1], 8081))
+                    };
+                    config.mode = vibefreak_mcp::McpMode::Remote(addr);
+                    i += 1;
+                }
+                "-p" | "--port" if i + 1 < args.len() => {
+                    if let Ok(p) = args[i + 1].parse::<u16>() {
+                        config.port = p;
+                    }
+                    i += 1;
+                }
+                "--presets" if i + 1 < args.len() => {
+                    config.presets_path = std::path::PathBuf::from(&args[i + 1]);
+                    i += 1;
+                }
+                "--mff" if i + 1 < args.len() => {
+                    config.mff_path = Some(std::path::PathBuf::from(&args[i + 1]));
+                    i += 1;
+                }
+                "--firmware-dir" if i + 1 < args.len() => {
+                    config.firmware_dir = Some(std::path::PathBuf::from(&args[i + 1]));
+                    i += 1;
+                }
+                "--main-bin" if i + 1 < args.len() => {
+                    config.main_bin = Some(std::path::PathBuf::from(&args[i + 1]));
+                    i += 1;
+                }
+                "--qspi-bin" if i + 1 < args.len() => {
+                    config.qspi_bin = Some(std::path::PathBuf::from(&args[i + 1]));
+                    i += 1;
+                }
+                "--oled-bin" if i + 1 < args.len() => {
+                    config.oled_bin = Some(std::path::PathBuf::from(&args[i + 1]));
+                    i += 1;
+                }
+                "--matrix-bin" if i + 1 < args.len() => {
+                    config.matrix_bin = Some(std::path::PathBuf::from(&args[i + 1]));
+                    i += 1;
+                }
+                "--kbd-bin" if i + 1 < args.len() => {
+                    config.kbd_bin = Some(std::path::PathBuf::from(&args[i + 1]));
+                    i += 1;
+                }
+                s if !s.starts_with('-') => {
+                    let p = std::path::PathBuf::from(s);
+                    if p.extension().is_some_and(|ext| ext == "mff") || p.is_file() {
+                        config.mff_path = Some(p);
+                    } else if p.is_dir() {
+                        config.firmware_dir = Some(p);
+                    }
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+        return vibefreak_mcp::run_mcp_server(config).await;
     }
 
     let mut custom_mff: Option<std::path::PathBuf> = None;
@@ -124,7 +202,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             s if !s.starts_with('-') => {
                 let candidate = std::path::PathBuf::from(s);
-                if candidate.extension().map_or(false, |ext| ext == "mff") || candidate.is_file() {
+                if candidate.extension().is_some_and(|ext| ext == "mff") || candidate.is_file() {
                     custom_mff = Some(candidate);
                 } else if candidate.is_dir() {
                     custom_dir = Some(candidate);
@@ -361,7 +439,7 @@ fn find_mff_file(search_dirs: &[&Path]) -> Option<std::path::PathBuf> {
             let mut mffs: Vec<std::path::PathBuf> = entries
                 .filter_map(|e| e.ok())
                 .map(|e| e.path())
-                .filter(|p| p.extension().map_or(false, |ext| ext.eq_ignore_ascii_case("mff")))
+                .filter(|p| p.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("mff")))
                 .collect();
             mffs.sort();
             if let Some(first) = mffs.pop() {
@@ -423,6 +501,7 @@ fn resolve_firmware_source(
     if let Some(detected_mff) = find_mff_file(&[
         Path::new("."),
         Path::new("dist"),
+        Path::new("tests/fixtures"),
         Path::new("original_firmware/microfreak"),
     ]) {
         println!("===> Auto-detected firmware package: {}", detected_mff.display());
@@ -606,6 +685,15 @@ fn process_cmd(
         }
         ClientCommand::FeedAudioInput { samples } => {
             emu.feed_audio_input(&samples);
+        }
+        ClientCommand::SetFilterMode { mode } => {
+            let m = match mode.to_lowercase().as_str() {
+                "bp" | "bandpass" => vibefreak_core::SemFilterMode::BandPass,
+                "hp" | "highpass" => vibefreak_core::SemFilterMode::HighPass,
+                "notch" => vibefreak_core::SemFilterMode::Notch,
+                _ => vibefreak_core::SemFilterMode::LowPass,
+            };
+            emu.set_filter_mode_switch(m);
         }
     }
 }

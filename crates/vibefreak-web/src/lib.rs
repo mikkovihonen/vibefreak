@@ -4,7 +4,7 @@ use axum::{
         State,
     },
     response::{Html, Json, Response},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use crossbeam_channel::Sender;
@@ -45,7 +45,22 @@ pub struct AppState {
     pub snapshot: Arc<RwLock<EmulatorSnapshot>>,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct SwdApiRequest {
+    pub command: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SwdApiResponse {
+    pub output: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CommandApiResponse {
+    pub ok: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ApiStateResponse {
     pub has_banner: bool,
     pub framebuffer: Vec<u8>,
@@ -55,7 +70,7 @@ pub struct ApiStateResponse {
     pub rear_panel: RearPanelState,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "cmd")]
 pub enum ClientCommand {
     #[serde(rename = "key")]
@@ -116,6 +131,9 @@ pub enum ClientCommand {
 
     #[serde(rename = "feed_audio_input")]
     FeedAudioInput { samples: Vec<f32> },
+
+    #[serde(rename = "set_filter_mode")]
+    SetFilterMode { mode: String },
 }
 
 pub async fn start_web_server(
@@ -133,6 +151,8 @@ pub async fn start_web_server(
     let app = Router::new()
         .route("/", get(serve_index))
         .route("/api/state", get(get_api_state))
+        .route("/api/swd", post(post_api_swd))
+        .route("/api/command", post(post_api_command))
         .route("/ws", get(ws_handler))
         .layer(CorsLayer::permissive())
         .with_state(state);
@@ -160,6 +180,29 @@ async fn get_api_state(State(state): State<AppState>) -> Json<ApiStateResponse> 
         icon_leds: snap.icon_leds.to_vec(),
         rear_panel: snap.rear_panel,
     })
+}
+
+async fn post_api_swd(
+    State(state): State<AppState>,
+    Json(payload): Json<SwdApiRequest>,
+) -> Json<SwdApiResponse> {
+    let mut rx = state.swd_out_tx.subscribe();
+    let _ = state.command_tx.send(ClientCommand::Swd {
+        command: payload.command,
+    });
+    let output = match tokio::time::timeout(Duration::from_millis(1500), rx.recv()).await {
+        Ok(Ok(out)) => out,
+        _ => String::from("[SWD] Command sent (timeout waiting for response)\n"),
+    };
+    Json(SwdApiResponse { output })
+}
+
+async fn post_api_command(
+    State(state): State<AppState>,
+    Json(cmd): Json<ClientCommand>,
+) -> Json<CommandApiResponse> {
+    let ok = state.command_tx.send(cmd).is_ok();
+    Json(CommandApiResponse { ok })
 }
 
 async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
