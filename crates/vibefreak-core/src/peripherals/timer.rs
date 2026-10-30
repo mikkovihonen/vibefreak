@@ -73,18 +73,46 @@ impl TimerBlock {
                         self.sr |= 1 << 0; // UIF
                     }
                 }
+                if (val & (1 << 1)) != 0 { self.sr |= 1 << 1; }
+                if (val & (1 << 2)) != 0 { self.sr |= 1 << 2; }
+                if (val & (1 << 3)) != 0 { self.sr |= 1 << 3; }
+                if (val & (1 << 4)) != 0 { self.sr |= 1 << 4; }
+                if (val & (1 << 6)) != 0 { self.sr |= 1 << 6; }
             }
             0x18 => self.ccmr1 = val,
             0x1C => self.ccmr2 = val,
             0x20 => self.ccer = val,
-            0x24 => self.cnt = val & mask,
+            0x24 => {
+                let new_cnt = val & mask;
+                self.cnt = new_cnt;
+                if new_cnt == self.ccr1 { self.sr |= 1 << 1; }
+                if new_cnt == self.ccr2 { self.sr |= 1 << 2; }
+                if new_cnt == self.ccr3 { self.sr |= 1 << 3; }
+                if new_cnt == self.ccr4 { self.sr |= 1 << 4; }
+            }
             0x28 => self.psc = val & 0xFFFF,
             0x2C => self.arr = val & mask,
             0x30 => self.rcr = val & 0xFFFF,
-            0x34 => self.ccr1 = val & mask,
-            0x38 => self.ccr2 = val & mask,
-            0x3C => self.ccr3 = val & mask,
-            0x40 => self.ccr4 = val & mask,
+            0x34 => {
+                let new_ccr1 = val & mask;
+                self.ccr1 = new_ccr1;
+                if new_ccr1 == self.cnt { self.sr |= 1 << 1; }
+            }
+            0x38 => {
+                let new_ccr2 = val & mask;
+                self.ccr2 = new_ccr2;
+                if new_ccr2 == self.cnt { self.sr |= 1 << 2; }
+            }
+            0x3C => {
+                let new_ccr3 = val & mask;
+                self.ccr3 = new_ccr3;
+                if new_ccr3 == self.cnt { self.sr |= 1 << 3; }
+            }
+            0x40 => {
+                let new_ccr4 = val & mask;
+                self.ccr4 = new_ccr4;
+                if new_ccr4 == self.cnt { self.sr |= 1 << 4; }
+            }
             0x44 => self.bdtr = val,
             0x48 => self.dcr = val,
             0x4C => self.dmar = val,

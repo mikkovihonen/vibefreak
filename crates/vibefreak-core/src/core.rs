@@ -2342,7 +2342,9 @@ impl VibeFreakEmulator {
         self.uc.get_data_mut().mmio.timers.step_cycles(120_000);
 
         let timer_irq_active = self.uc.get_data().mmio.timers.is_tim5_irq_active()
-            || self.uc.get_data().mmio.timers.is_tim8_cc_irq_active();
+            || self.uc.get_data().mmio.timers.is_tim8_cc_irq_active()
+            || self.uc.get_data().mmio.timers.is_tim8_trg_com_irq_active()
+            || self.uc.get_data().mmio.timers.is_tim8_up_irq_active();
         let effective_step_budget = if timer_irq_active {
             mcu_step_budget.max(2500)
         } else {
