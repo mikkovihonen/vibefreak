@@ -1788,12 +1788,12 @@ impl VibeFreakEmulator {
             audio_proc.set_cutoff_raw_16b(cutoff_16b);
         }
 
-        // Physical SEM Resonance CV from DAC1 Channel 2 (PA5, DHR12R2)
+        // Physical SEM Resonance CV from DAC1 Channel 1 (PA4, DHR12R1 / DOR1)
+        // Hardware uses an inverting analog OTA stage: 3.3V (raw 4095) = min resonance, 0V (raw 0) = max resonance.
         let dac = &uc.get_data().mmio.dac;
-        let resonance_12b = (dac.dhr12r2 & 0x0FFF) as u16;
-        if resonance_12b > 0 {
-            audio_proc.set_resonance_raw_12b(resonance_12b);
-        }
+        let dac1_val = (dac.dor1 & 0x0FFF) as u16;
+        let resonance_12b = 4095u16.saturating_sub(dac1_val);
+        audio_proc.set_resonance_raw_12b(resonance_12b);
 
         // Physical VCA Gain CV from TIM14 CCR1 (PA7, 13-bit PWM DAC)
         let tim14 = &uc.get_data().mmio.timers.timers[13];
@@ -2624,8 +2624,8 @@ impl VibeFreakEmulator {
             0.0
         };
 
-        // 3. Pressure CV: DAC1 Channel 1 (PA4 -> dor1, 12-bit)
-        let pressure_raw = (mmio.dac.dor1 & 0x0FFF) as u16;
+        // 3. Pressure CV: DAC1 Channel 2 (PA5 -> dor2, 12-bit)
+        let pressure_raw = (mmio.dac.dor2 & 0x0FFF) as u16;
         let pressure_volts = (pressure_raw as f32 / 4095.0) * 10.0;
 
         // 4. Clock Output: GPIOE PE12
