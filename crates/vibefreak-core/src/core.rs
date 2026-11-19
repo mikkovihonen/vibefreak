@@ -918,7 +918,10 @@ impl VibeFreakEmulator {
         frame[24..28].copy_from_slice(&pc.to_le_bytes());
         frame[28..32].copy_from_slice(&stacked_xpsr.to_le_bytes());
 
-        if is_fpu_active && (vector_num == VECTOR_DMA2_STREAM4 || vector_num == VECTOR_DMA2_STREAM6) {
+        // The extended (104-byte) frame is restored in full by exit_exception, so S0-S15/FPSCR
+        // must be saved for every vector; otherwise the interrupted context's FP registers are
+        // overwritten with zeros on exception return.
+        if is_fpu_active {
             for (i, &s_reg) in S_REGS.iter().enumerate() {
                 let s_val = uc.reg_read(s_reg).unwrap_or(0) as u32;
                 let off = 32 + i * 4;
