@@ -243,6 +243,27 @@ static inline bool float32_are_finite3(uint32_t a, uint32_t b, uint32_t c)
            ((c & 0x7F800000u) != 0x7F800000u);
 }
 
+/*
+ * Float -> integer conversion for the fastpath with ARM semantics: NaN converts
+ * to 0 and out-of-range values saturate to [lo, hi]. A plain C cast is undefined
+ * for these inputs; on x86 hosts it yields INT_MIN (0x80000000), which diverges
+ * from the guest and can corrupt firmware state. ARM64 hosts happen to saturate.
+ */
+static inline int64_t vfp_fast_f2i(float f, int64_t lo, int64_t hi, bool round_nearest)
+{
+    if (f != f) {
+        return 0;
+    }
+    double d = round_nearest ? rint((double)f) : (double)f;
+    if (d <= (double)lo) {
+        return lo;
+    }
+    if (d >= (double)hi) {
+        return hi;
+    }
+    return (int64_t)d;
+}
+
 #define VFP_HELPER(name, p) HELPER(glue(glue(vfp_,name),p))
 
 float32 VFP_HELPER(add, s)(float32 a, float32 b, void *fpstp)
@@ -386,7 +407,7 @@ float32 VFP_HELPER(sqrt, s)(float32 a, CPUARMState *env)
 {
     if (likely(g_vfp_fastpath_enabled)) {
         float fa = u2f(a);
-        return f2u(__builtin_sqrtf(fa));
+        return f2u(sqrtf(fa));
     }
     return float32_sqrt(a, &env->vfp.fp_status);
 }
@@ -520,7 +541,7 @@ int32_t HELPER(vfp_tosizs)(float32 x, void *fpstp)
 {
     if (likely(g_vfp_fastpath_enabled)) {
         float fx = u2f(x);
-        return (int32_t)fx;
+        return (int32_t)vfp_fast_f2i(fx, INT32_MIN, INT32_MAX, false);
     }
     float_status *fpst = fpstp;
     if (float32_is_any_nan(x)) {
@@ -534,7 +555,7 @@ uint32_t HELPER(vfp_touizs)(float32 x, void *fpstp)
 {
     if (likely(g_vfp_fastpath_enabled)) {
         float fx = u2f(x);
-        return (uint32_t)fx;
+        return (uint32_t)vfp_fast_f2i(fx, 0, UINT32_MAX, false);
     }
     float_status *fpst = fpstp;
     if (float32_is_any_nan(x)) {
@@ -548,7 +569,7 @@ int32_t HELPER(vfp_tosis)(float32 x, void *fpstp)
 {
     if (likely(g_vfp_fastpath_enabled)) {
         float fx = u2f(x);
-        return (int32_t)__builtin_lrintf(fx);
+        return (int32_t)vfp_fast_f2i(fx, INT32_MIN, INT32_MAX, true);
     }
     float_status *fpst = fpstp;
     if (float32_is_any_nan(x)) {
@@ -562,7 +583,7 @@ uint32_t HELPER(vfp_touis)(float32 x, void *fpstp)
 {
     if (likely(g_vfp_fastpath_enabled)) {
         float fx = u2f(x);
-        return (uint32_t)__builtin_llrintf(fx);
+        return (uint32_t)vfp_fast_f2i(fx, 0, UINT32_MAX, true);
     }
     float_status *fpst = fpstp;
     if (float32_is_any_nan(x)) {
@@ -631,10 +652,17 @@ float##fsz HELPER(vfp_##name##to##p)(uint##isz##_t  x, uint32_t shift, \
 uint##isz##_t HELPER(vfp_to##name##p##suff)(float##fsz x, uint32_t shift, \
                                             void *fpst)                   \
 {                                                                         \
-    if (likely(g_vfp_fastpath_enabled && fsz == 32 && shift < 32)) {     \
+    if (likely(g_vfp_fastpath_enabled && fsz == 32 && shift < 32 &&      \
+               sizeof(itype##_t) < 8)) {                                  \
+        const int bits = (int)sizeof(itype##_t) * 8;                      \
+        const bool is_signed = (itype##_t)-1 < 0;                         \
+        const int64_t lo = is_signed ? -((int64_t)1 << (bits - 1)) : 0;   \
+        const int64_t hi = is_signed ? ((int64_t)1 << (bits - 1)) - 1     \
+                                     : ((int64_t)1 << bits) - 1;          \
         float fx = u2f(x);                                                \
         float scaled = fx * k_pow2_pos[shift];                            \
-        return (uint##isz##_t)(itype##_t)scaled;                          \
+        return (uint##isz##_t)(itype##_t)vfp_fast_f2i(                    \
+            scaled, lo, hi, (ROUND) != float_round_to_zero);              \
     }                                                                     \
     if (unlikely(float##fsz##_is_any_nan(x))) {                           \
         float_raise(float_flag_invalid, fpst);                            \
@@ -1335,7 +1363,7 @@ float32 VFP_HELPER(muladd, s)(float32 a, float32 b, float32 c, void *fpstp)
         float fa = u2f(a);
         float fb = u2f(b);
         float fc = u2f(c);
-        return f2u(__builtin_fmaf(fa, fb, fc));
+        return f2u(fmaf(fa, fb, fc));
     }
     float_status *fpst = fpstp;
     return float32_muladd(a, b, c, 0, fpst);
